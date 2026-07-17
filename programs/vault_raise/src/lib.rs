@@ -6,14 +6,47 @@ declare_id!("11111111111111111111111111111111");
 pub mod vault_raise {
     use super::*;
 
-    pub fn initialize(_ctx: Context<Initialize>) -> Result<()> {
-        msg!("VaultRaise program initialized");
+    pub fn create_campaign(
+        ctx: Context<CreateCampaign>,
+        _campaign_id: u64,
+        goal: u64,
+        deadline: i64,
+    ) -> Result<()> {
+        let current_time = Clock::get()?.unix_timestamp;
+
+        require!(goal > 0, VaultRaiseError::InvalidGoal);
+        require!(deadline > current_time, VaultRaiseError::InvalidDeadline);
+
+        let campaign = &mut ctx.accounts.campaign;
+        campaign.creator = ctx.accounts.creator.key();
+        campaign.goal = goal;
+        campaign.raised = 0;
+        campaign.deadline = deadline;
+        campaign.claimed = false;
+        campaign.bump = ctx.bumps.campaign;
+        campaign.vault_bump = 0; // To be implemented fully in VR-004
+
+        msg!("Campaign created: goal={}, deadline={}", goal, deadline);
+
         Ok(())
     }
 }
 
 #[derive(Accounts)]
-pub struct Initialize {}
+#[instruction(_campaign_id: u64)]
+pub struct CreateCampaign<'info> {
+    #[account(
+        init,
+        payer = creator,
+        space = Campaign::SPACE,
+        seeds = [b"campaign", creator.key().as_ref(), &_campaign_id.to_le_bytes()],
+        bump
+    )]
+    pub campaign: Account<'info, Campaign>,
+    #[account(mut)]
+    pub creator: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
 
 #[account]
 #[derive(InitSpace)]

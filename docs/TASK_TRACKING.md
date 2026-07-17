@@ -73,3 +73,25 @@ Evidence:
 - Added `VaultRaiseError` enum for expected validation and safety failures.
 - `cargo check` completed successfully from WSL.
 - `anchor build` completed successfully from WSL.
+
+## VR-003 - Implement Create Campaign Instruction
+
+Status: Done
+
+Started: 2026-07-17
+Completed: 2026-07-17
+
+Scope:
+
+- Implement `create_campaign` instruction.
+- Accept `_campaign_id`, `goal`, and `deadline`.
+- Validate `goal > 0` and future `deadline`.
+- Initialize `Campaign` account state.
+- Write log event for campaign creation.
+
+Evidence:
+
+- `lib.rs` contains `create_campaign` function and `CreateCampaign` accounts struct.
+- Validations use `require!` macro with `VaultRaiseError`.
+- Campaign account initialized with correct values.
+- `cargo check` completed successfully in WSL without unused variable warnings for `_campaign_id`.
