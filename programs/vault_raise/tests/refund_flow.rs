@@ -6,16 +6,8 @@ use solana_sdk::{
 };
 use vault_raise;
 
-pub fn process_instruction<'a>(
-    program_id: &Pubkey,
-    accounts: &'a [solana_sdk::account_info::AccountInfo<'a>],
-    instruction_data: &[u8],
-) -> solana_sdk::entrypoint::ProgramResult {
-    vault_raise::entry(program_id, accounts, instruction_data)
-}
-
 pub fn program_test() -> ProgramTest {
-    ProgramTest::new("vault_raise", vault_raise::id(), processor!(process_instruction))
+    ProgramTest::new("vault_raise", vault_raise::id(), None)
 }
 
 async fn setup_failed_campaign(
@@ -102,7 +94,7 @@ async fn setup_failed_campaign(
 #[tokio::test]
 async fn test_refund_success_and_twice_fails() {
     let mut context = program_test().start_with_context().await;
-    let payer = Keypair::from_bytes(&context.payer.to_bytes()).unwrap();
+    let payer = Keypair::try_from(context.payer.to_bytes().as_ref()).unwrap();
 
     let campaign_id = 1u64;
     let goal = 1000 * 1_000_000_000;
@@ -159,7 +151,7 @@ async fn test_refund_success_and_twice_fails() {
 #[tokio::test]
 async fn test_refund_fails_before_deadline() {
     let mut context = program_test().start_with_context().await;
-    let payer = Keypair::from_bytes(&context.payer.to_bytes()).unwrap();
+    let payer = Keypair::try_from(context.payer.to_bytes().as_ref()).unwrap();
 
     let campaign_id = 2u64;
     let goal = 1000 * 1_000_000_000;
@@ -198,7 +190,7 @@ async fn test_refund_fails_before_deadline() {
 #[tokio::test]
 async fn test_refund_fails_when_goal_reached() {
     let mut context = program_test().start_with_context().await;
-    let payer = Keypair::from_bytes(&context.payer.to_bytes()).unwrap();
+    let payer = Keypair::try_from(context.payer.to_bytes().as_ref()).unwrap();
 
     let campaign_id = 3u64;
     let goal = 1000 * 1_000_000_000;

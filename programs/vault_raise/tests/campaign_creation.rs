@@ -6,21 +6,13 @@ use solana_sdk::{
 };
 use vault_raise;
 
-pub fn process_instruction<'a>(
-    program_id: &Pubkey,
-    accounts: &'a [solana_sdk::account_info::AccountInfo<'a>],
-    instruction_data: &[u8],
-) -> solana_sdk::entrypoint::ProgramResult {
-    vault_raise::entry(program_id, accounts, instruction_data)
-}
-
 pub fn program_test() -> ProgramTest {
-    ProgramTest::new("vault_raise", vault_raise::id(), processor!(process_instruction))
+    ProgramTest::new("vault_raise", vault_raise::id(), None)
 }
 
 #[tokio::test]
 async fn test_campaign_creation_success() {
-    let mut program_test = program_test();
+    let program_test = program_test();
     let (mut banks_client, payer, recent_blockhash) = program_test.start().await;
 
     let campaign_id = 1u64;
@@ -75,7 +67,7 @@ async fn test_campaign_creation_success() {
 
 #[tokio::test]
 async fn test_campaign_creation_fails_past_deadline() {
-    let mut program_test = program_test();
+    let program_test = program_test();
     let (mut banks_client, payer, recent_blockhash) = program_test.start().await;
 
     let campaign_id = 2u64;
@@ -122,7 +114,7 @@ async fn test_campaign_creation_fails_past_deadline() {
 
 #[tokio::test]
 async fn test_campaign_creation_fails_zero_goal() {
-    let mut program_test = program_test();
+    let program_test = program_test();
     let (mut banks_client, payer, recent_blockhash) = program_test.start().await;
 
     let campaign_id = 3u64;
