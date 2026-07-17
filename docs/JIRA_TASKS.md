@@ -1,6 +1,6 @@
 # VaultRaise - Jira Task Breakdown
 
-Dokumen ini berisi daftar task bergaya Jira untuk mengerjakan MVP Solana Crowdfunding Platform. Nama kerja proyek: **VaultRaise**.
+This document contains a Jira-style task breakdown for the development of the MVP Solana Crowdfunding Platform. Project working name: **VaultRaise**.
 
 ## EPIC-001 - Project Foundation
 
@@ -12,15 +12,15 @@ Dokumen ini berisi daftar task bergaya Jira untuk mengerjakan MVP Solana Crowdfu
 **Estimate:** 1 day  
 
 **Description:**  
-Set up struktur awal proyek Solana menggunakan Anchor agar program, test, dan deployment dapat dikelola secara konsisten.
+Set up the initial Solana project structure using Anchor so that the program, tests, and deployment can be managed consistently.
 
 **Acceptance Criteria:**
 
-- Anchor project berhasil dibuat.
-- Struktur folder program Rust tersedia.
-- `Anchor.toml` tersedia.
-- Project bisa menjalankan build awal.
-- File AI lokal tetap tidak ter-track oleh git.
+- Anchor project is successfully created.
+- Rust program folder structure is available.
+- `Anchor.toml` is available.
+- The project can run an initial build.
+- Local AI files remain untracked by git.
 
 **Dependencies:** None
 
@@ -32,14 +32,14 @@ Set up struktur awal proyek Solana menggunakan Anchor agar program, test, dan de
 **Estimate:** 1 day  
 
 **Description:**  
-Implementasikan struktur akun utama untuk campaign, contribution, dan error custom.
+Implement the main account structures for campaign, contribution, and custom errors.
 
 **Acceptance Criteria:**
 
-- Account `Campaign` memiliki `creator`, `goal`, `raised`, `deadline`, dan `claimed`.
-- Account `Contribution` menyimpan campaign, donor, amount, dan refunded status.
-- Error custom tersedia untuk invalid deadline, unauthorized creator, already claimed, already refunded, arithmetic overflow, dan invalid amount.
-- Tidak ada penggunaan `unwrap()` untuk flow yang bisa gagal.
+- `Campaign` account has `creator`, `goal`, `raised`, `deadline`, and `claimed`.
+- `Contribution` account stores the campaign, donor, amount, and refunded status.
+- Custom errors are available for invalid deadline, unauthorized creator, already claimed, already refunded, arithmetic overflow, and invalid amount.
+- No `unwrap()` is used for flows that can fail.
 
 **Dependencies:** VR-001
 
@@ -53,15 +53,15 @@ Implementasikan struktur akun utama untuk campaign, contribution, dan error cust
 **Estimate:** 1 day  
 
 **Description:**  
-Sebagai creator, saya ingin membuat campaign dengan goal dan deadline agar donor dapat berkontribusi ke campaign tersebut.
+As a creator, I want to create a campaign with a goal and a deadline so that donors can contribute to it.
 
 **Acceptance Criteria:**
 
-- Instruction menerima `goal: u64` dan `deadline: i64`.
-- Program menolak `goal = 0`.
-- Program menolak deadline yang tidak berada di masa depan.
-- Campaign menyimpan creator, goal, deadline, raised `0`, dan claimed `false`.
-- Program menulis log: `Campaign created: goal={goal}, deadline={deadline}`.
+- The instruction accepts `goal: u64` and `deadline: i64`.
+- The program rejects `goal = 0`.
+- The program rejects a deadline that is not in the future.
+- The campaign stores creator, goal, deadline, raised `0`, and claimed `false`.
+- The program logs: `Campaign created: goal={goal}, deadline={deadline}`.
 
 **Dependencies:** VR-002
 
@@ -73,14 +73,14 @@ Sebagai creator, saya ingin membuat campaign dengan goal dan deadline agar donor
 **Estimate:** 1 day  
 
 **Description:**  
-Implementasikan vault PDA agar semua dana campaign dikunci oleh program, bukan dikirim langsung ke creator.
+Implement a vault PDA so that all campaign funds are locked by the program, instead of being sent directly to the creator.
 
 **Acceptance Criteria:**
 
-- Vault PDA diturunkan dengan seed `["vault", campaign.key()]`.
-- Bump disimpan atau dapat diverifikasi secara aman.
-- Program memvalidasi vault account yang diberikan sesuai seed.
-- Dokumentasi internal menjelaskan bahwa creator tidak boleh menerima donasi langsung.
+- Vault PDA is derived with the seed `["vault", campaign.key()]`.
+- The bump is stored or can be verified securely.
+- The program validates the provided vault account against the seed.
+- Internal documentation explains that the creator must not receive donations directly.
 
 **Dependencies:** VR-003
 
@@ -92,17 +92,17 @@ Implementasikan vault PDA agar semua dana campaign dikunci oleh program, bukan d
 **Estimate:** 2 days  
 
 **Description:**  
-Sebagai donor, saya ingin mengirim SOL ke campaign vault agar dana saya terkunci sampai campaign sukses atau gagal.
+As a donor, I want to send SOL to the campaign vault so that my funds are locked until the campaign succeeds or fails.
 
 **Acceptance Criteria:**
 
-- Instruction menerima `amount: u64`.
-- Program menolak `amount = 0`.
-- Program menolak kontribusi setelah deadline.
-- Program mentransfer SOL dari donor ke vault PDA.
-- Program menambah `campaign.raised` menggunakan checked arithmetic.
-- Program membuat atau memperbarui account `Contribution`.
-- Program menulis log: `Contributed: {amount} lamports, total={raised}`.
+- The instruction accepts `amount: u64`.
+- The program rejects `amount = 0`.
+- The program rejects contributions after the deadline.
+- The program transfers SOL from the donor to the vault PDA.
+- The program increases `campaign.raised` using checked arithmetic.
+- The program creates or updates the `Contribution` account.
+- The program logs: `Contributed: {amount} lamports, total={raised}`.
 
 **Dependencies:** VR-004
 
@@ -114,17 +114,17 @@ Sebagai donor, saya ingin mengirim SOL ke campaign vault agar dana saya terkunci
 **Estimate:** 2 days  
 
 **Description:**  
-Sebagai creator, saya ingin menarik dana dari vault jika campaign mencapai goal setelah deadline.
+As a creator, I want to withdraw funds from the vault if the campaign reaches its goal after the deadline.
 
 **Acceptance Criteria:**
 
-- Withdraw hanya berhasil jika `raised >= goal`.
-- Withdraw hanya berhasil jika current time `>= deadline`.
-- Withdraw hanya berhasil jika caller adalah creator.
-- Withdraw gagal jika campaign sudah claimed.
-- Program mentransfer SOL dari vault PDA ke creator menggunakan signed PDA flow.
-- Program menandai `claimed = true`.
-- Program menulis log: `Withdrawn: {amount} lamports`.
+- Withdraw only succeeds if `raised >= goal`.
+- Withdraw only succeeds if current time `>= deadline`.
+- Withdraw only succeeds if the caller is the creator.
+- Withdraw fails if the campaign is already claimed.
+- The program transfers SOL from the vault PDA to the creator using the signed PDA flow.
+- The program marks `claimed = true`.
+- The program logs: `Withdrawn: {amount} lamports`.
 
 **Dependencies:** VR-005
 
@@ -136,17 +136,17 @@ Sebagai creator, saya ingin menarik dana dari vault jika campaign mencapai goal 
 **Estimate:** 2 days  
 
 **Description:**  
-Sebagai donor, saya ingin mendapatkan refund jika campaign gagal mencapai goal setelah deadline.
+As a donor, I want to get a refund if the campaign fails to reach its goal after the deadline.
 
 **Acceptance Criteria:**
 
-- Refund hanya berhasil jika `raised < goal`.
-- Refund hanya berhasil jika current time `>= deadline`.
-- Refund hanya berhasil untuk donor yang memiliki contribution.
-- Refund gagal jika contribution sudah refunded.
-- Program mentransfer SOL dari vault PDA ke donor menggunakan signed PDA flow.
-- Program menandai contribution sebagai refunded.
-- Program menulis log: `Refunded: {amount} lamports`.
+- Refund only succeeds if `raised < goal`.
+- Refund only succeeds if current time `>= deadline`.
+- Refund only succeeds for a donor who has a contribution.
+- Refund fails if the contribution is already refunded.
+- The program transfers SOL from the vault PDA to the donor using the signed PDA flow.
+- The program marks the contribution as refunded.
+- The program logs: `Refunded: {amount} lamports`.
 
 **Dependencies:** VR-005
 
@@ -160,14 +160,14 @@ Sebagai donor, saya ingin mendapatkan refund jika campaign gagal mencapai goal s
 **Estimate:** 1 day  
 
 **Description:**  
-Buat test untuk memastikan campaign creation valid dan invalid berjalan sesuai spesifikasi.
+Write tests to ensure that valid and invalid campaign creations behave according to the specifications.
 
 **Acceptance Criteria:**
 
-- Test create campaign berhasil dengan deadline masa depan.
-- Test create campaign gagal jika deadline sudah lewat.
-- Test create campaign gagal jika goal `0`.
-- State awal campaign tervalidasi.
+- Campaign creation test succeeds with a future deadline.
+- Campaign creation test fails if the deadline has passed.
+- Campaign creation test fails if the goal is `0`.
+- The initial state of the campaign is validated.
 
 **Dependencies:** VR-003
 
@@ -179,16 +179,16 @@ Buat test untuk memastikan campaign creation valid dan invalid berjalan sesuai s
 **Estimate:** 1 day  
 
 **Description:**  
-Buat test kontribusi donor dan akumulasi total raised.
+Write tests for donor contributions and the accumulation of total raised funds.
 
 **Acceptance Criteria:**
 
-- Contribute `600 SOL` equivalent in lamports berhasil.
-- Contribute tambahan `500 SOL` equivalent in lamports berhasil.
-- `raised` menjadi total `1100 SOL` equivalent in lamports.
-- Contribution donor tercatat benar.
-- Contribute setelah deadline gagal.
-- Contribute amount `0` gagal.
+- Contribute `600 SOL` equivalent in lamports succeeds.
+- Additional contribute `500 SOL` equivalent in lamports succeeds.
+- `raised` becomes a total of `1100 SOL` equivalent in lamports.
+- The donor's contribution is recorded correctly.
+- Contribute after the deadline fails.
+- Contribute amount `0` fails.
 
 **Dependencies:** VR-005
 
@@ -200,15 +200,15 @@ Buat test kontribusi donor dan akumulasi total raised.
 **Estimate:** 1 day  
 
 **Description:**  
-Buat test withdraw untuk campaign sukses dan failure cases.
+Write withdraw tests for successful campaigns and failure cases.
 
 **Acceptance Criteria:**
 
-- Withdraw sebelum deadline gagal.
-- Withdraw setelah deadline dan goal tercapai berhasil.
-- Withdraw oleh non-creator gagal.
-- Withdraw kedua gagal karena already claimed.
-- Balance creator bertambah sesuai dana vault.
+- Withdraw before the deadline fails.
+- Withdraw after the deadline and when the goal is reached succeeds.
+- Withdraw by a non-creator fails.
+- A second withdraw fails because it's already claimed.
+- The creator's balance increases according to the vault's funds.
 
 **Dependencies:** VR-006
 
@@ -220,15 +220,15 @@ Buat test withdraw untuk campaign sukses dan failure cases.
 **Estimate:** 1 day  
 
 **Description:**  
-Buat test refund untuk campaign gagal dan failure cases.
+Write refund tests for failed campaigns and failure cases.
 
 **Acceptance Criteria:**
 
-- Refund sebelum deadline gagal.
-- Refund setelah deadline dan goal tidak tercapai berhasil.
-- Refund untuk campaign sukses gagal.
-- Refund kedua gagal karena already refunded.
-- Refund hanya mengembalikan amount milik donor terkait.
+- Refund before the deadline fails.
+- Refund after the deadline and when the goal is not reached succeeds.
+- Refund for a successful campaign fails.
+- A second refund fails because it's already refunded.
+- Refund only returns the amount belonging to the respective donor.
 
 **Dependencies:** VR-007
 
@@ -240,15 +240,15 @@ Buat test refund untuk campaign gagal dan failure cases.
 **Estimate:** 1 day  
 
 **Description:**  
-Jalankan checklist QA yang ada di project context dan catat hasilnya sebagai bukti sebelum deploy.
+Run the existing QA checklist in the project context and record the results as evidence prior to deployment.
 
 **Acceptance Criteria:**
 
-- Semua success criteria QA ditandai pass/fail.
-- Skenario campaign sukses dijalankan end-to-end.
-- Skenario campaign gagal refund dijalankan end-to-end.
-- Semua failure case penting memiliki test evidence.
-- Tidak ada transfer langsung ke creator saat contribute.
+- All QA success criteria are marked pass/fail.
+- Successful campaign scenarios are executed end-to-end.
+- Failed campaign refund scenarios are executed end-to-end.
+- All critical failure cases have test evidence.
+- No direct transfers to the creator occur during a contribution.
 
 **Dependencies:** VR-008, VR-009, VR-010, VR-011
 
@@ -262,14 +262,14 @@ Jalankan checklist QA yang ada di project context dan catat hasilnya sebagai buk
 **Estimate:** 0.5 day  
 
 **Description:**  
-Siapkan konfigurasi wallet dan cluster Devnet untuk deployment program.
+Prepare the wallet and Devnet cluster configuration for program deployment.
 
 **Acceptance Criteria:**
 
-- Solana CLI target cluster adalah Devnet.
-- Wallet deployer tersedia.
-- Wallet memiliki SOL Devnet yang cukup.
-- Konfigurasi Anchor mengarah ke Devnet.
+- Solana CLI target cluster is Devnet.
+- The deployer wallet is available.
+- The wallet has sufficient Devnet SOL.
+- Anchor configuration points to Devnet.
 
 **Dependencies:** VR-012
 
@@ -281,15 +281,15 @@ Siapkan konfigurasi wallet dan cluster Devnet untuk deployment program.
 **Estimate:** 1 day  
 
 **Description:**  
-Deploy program Rust ke Solana Devnet dan catat Program ID.
+Deploy the Rust program to the Solana Devnet and record the Program ID.
 
 **Acceptance Criteria:**
 
-- Program berhasil di-build untuk deploy.
-- Program berhasil di-deploy ke Devnet.
-- Program ID dicatat di dokumentasi deliverables.
-- Jika menggunakan Anchor, `declare_id!()` dan `Anchor.toml` selaras dengan Program ID.
-- Explorer link Devnet tersedia jika memungkinkan.
+- The program is successfully built for deployment.
+- The program is successfully deployed to Devnet.
+- The Program ID is recorded in the deliverables documentation.
+- If using Anchor, `declare_id!()` and `Anchor.toml` align with the Program ID.
+- A Devnet explorer link is provided if possible.
 
 **Dependencies:** VR-013
 
@@ -301,15 +301,15 @@ Deploy program Rust ke Solana Devnet dan catat Program ID.
 **Estimate:** 1 day  
 
 **Description:**  
-Jalankan transaksi Devnet untuk membuktikan campaign creation, contribution, withdraw, dan refund.
+Execute Devnet transactions to prove campaign creation, contribution, withdrawal, and refund.
 
 **Acceptance Criteria:**
 
-- Signature transaksi create campaign dicatat.
-- Signature transaksi contribute dicatat.
-- Signature transaksi withdraw campaign sukses dicatat.
-- Signature transaksi refund campaign gagal dicatat.
-- Explorer link Devnet untuk setiap signature dicatat jika tersedia.
+- Create campaign transaction signature is recorded.
+- Contribute transaction signature is recorded.
+- Successful campaign withdraw transaction signature is recorded.
+- Failed campaign refund transaction signature is recorded.
+- Devnet explorer links for each signature are recorded if available.
 
 **Dependencies:** VR-014
 
@@ -323,15 +323,15 @@ Jalankan transaksi Devnet untuk membuktikan campaign creation, contribution, wit
 **Estimate:** 0.5 day  
 
 **Description:**  
-Update dokumen konteks dengan keputusan final yang muncul selama implementasi.
+Update the context document with final decisions that emerged during implementation.
 
 **Acceptance Criteria:**
 
-- Nama project final atau nama kerja dikonfirmasi.
-- Campaign seed final terdokumentasi.
-- Program ID terdokumentasi.
-- Devnet deployment evidence terdokumentasi.
-- Test transaction signatures terdokumentasi.
+- The final project name or working name is confirmed.
+- The final campaign seed is documented.
+- The Program ID is documented.
+- Devnet deployment evidence is documented.
+- Test transaction signatures are documented.
 
 **Dependencies:** VR-015
 
@@ -343,15 +343,15 @@ Update dokumen konteks dengan keputusan final yang muncul selama implementasi.
 **Estimate:** 0.5 day  
 
 **Description:**  
-Siapkan catatan handoff agar programmer berikutnya dapat menjalankan build, test, dan deploy tanpa kehilangan konteks.
+Prepare handoff notes so the next programmer can run builds, tests, and deployments without losing context.
 
 **Acceptance Criteria:**
 
-- Instruksi setup local environment tersedia.
-- Instruksi build tersedia.
-- Instruksi test tersedia.
-- Instruksi deploy Devnet tersedia.
-- Known limitations MVP terdokumentasi.
+- Local environment setup instructions are available.
+- Build instructions are available.
+- Test instructions are available.
+- Devnet deployment instructions are available.
+- MVP known limitations are documented.
 
 **Dependencies:** VR-016
 
@@ -386,15 +386,14 @@ Siapkan catatan handoff agar programmer berikutnya dapat menjalankan build, test
 
 ## Definition Of Done
 
-Proyek MVP dianggap selesai jika:
+The MVP project is considered complete if:
 
-- Rust program code tersedia.
-- Semua instruction utama selesai: create campaign, contribute, withdraw, refund.
-- Test utama dan failure cases lulus.
-- Program berhasil deploy ke Solana Devnet.
-- Program ID tercatat.
-- Test transaction signatures tercatat.
-- Tidak ada dana kontribusi yang dikirim langsung ke creator.
-- Vault PDA digunakan untuk escrow dana.
-- Dokumentasi konteks dan handoff diperbarui.
-
+- The Rust program code is available.
+- All core instructions are complete: create campaign, contribute, withdraw, refund.
+- Core tests and failure cases pass.
+- The program is successfully deployed to the Solana Devnet.
+- The Program ID is recorded.
+- Test transaction signatures are recorded.
+- No contribution funds are sent directly to the creator.
+- A PDA vault is used to escrow funds.
+- Context and handoff documentation are updated.

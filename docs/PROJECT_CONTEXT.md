@@ -1,74 +1,74 @@
 # Solana Crowdfunding Platform - Project Context
 
-## Status Dokumen
+## Document Status
 
-Dokumen ini adalah sumber konteks awal sebelum implementasi program dilakukan. Tujuannya menjaga arah aplikasi agar tetap fokus pada crowdfunding berbasis escrow di Solana: dana donor dikunci sampai campaign memenuhi kondisi sukses atau gagal.
+This document is the initial source of context before program implementation begins. Its goal is to keep the application's direction focused on escrow-based crowdfunding on Solana: donor funds are locked until the campaign meets its success or failure conditions.
 
-Belum ada keputusan final untuk nama proyek. Nama kerja sementara:
+No final decision has been made for the project name. The temporary working name is:
 
 **VaultRaise**
 
-Alasan: nama ini menekankan dua nilai utama produk, yaitu dana masuk ke vault yang terkunci dan hanya dapat dicairkan ketika aturan campaign terpenuhi.
+Reasoning: this name emphasizes the two main values of the product, which are that funds enter a locked vault and can only be withdrawn when the campaign rules are met.
 
-Alternatif branding untuk dipertimbangkan:
+Alternative branding for consideration:
 
-- **GoalVault**: jelas dan langsung menjelaskan dana dikunci sampai goal terpenuhi.
-- **PledgeLock**: menekankan pledge/donasi yang belum langsung diterima creator.
-- **CrowdVault**: sederhana, cocok untuk platform crowdfunding umum.
-- **MilestoneVault**: cocok jika nanti berkembang ke campaign berbasis milestone.
-- **TrustRaise**: menonjolkan trust dan transparansi untuk donor.
+- **GoalVault**: clear and directly explains that funds are locked until the goal is met.
+- **PledgeLock**: emphasizes that pledges/donations have not yet been directly received by the creator.
+- **CrowdVault**: simple, suitable for a general crowdfunding platform.
+- **MilestoneVault**: suitable if it later expands to milestone-based campaigns.
+- **TrustRaise**: highlights trust and transparency for donors.
 
-Untuk fase MVP, gunakan nama kerja **VaultRaise** di dokumentasi dan komentar internal sampai nama final dipilih.
+For the MVP phase, use the working name **VaultRaise** in documentation and internal comments until a final name is chosen.
 
 ## Problem Statement
 
-Crowdfunding tradisional sering memiliki masalah kepercayaan:
+Traditional crowdfunding often suffers from trust issues:
 
-- Donor ingin berdonasi tanpa dana langsung diterima creator sebelum syarat campaign terpenuhi.
-- Creator perlu mekanisme klaim yang jelas jika target dana tercapai.
-- Donor perlu refund otomatis atau dapat diverifikasi jika target tidak tercapai.
-- Semua pihak perlu bukti on-chain bahwa dana terkunci sampai kondisi campaign terpenuhi.
+- Donors want to donate without funds being directly received by the creator before the campaign conditions are met.
+- Creators need a clear claim mechanism if the funding target is reached.
+- Donors need an automatic or verifiable refund if the target is not reached.
+- All parties need on-chain proof that funds are locked until the campaign conditions are fulfilled.
 
-Platform ini menyelesaikan masalah tersebut dengan Solana Program yang menyimpan dana kontribusi di vault PDA, bukan langsung ke wallet creator.
+This platform solves these problems using a Solana Program that stores contribution funds in a vault PDA, instead of directly in the creator's wallet.
 
-## Tujuan MVP
+## MVP Goals
 
-MVP hanya mencakup empat aksi utama:
+The MVP only covers four main actions:
 
-1. Membuat campaign.
-2. Memberikan kontribusi SOL ke campaign.
-3. Creator menarik dana jika campaign sukses.
-4. Donor mengambil refund jika campaign gagal.
+1. Creating a campaign.
+2. Making a SOL contribution to a campaign.
+3. Creator withdrawing funds if the campaign is successful.
+4. Donor claiming a refund if the campaign fails.
 
-Tidak termasuk dalam MVP:
+Not included in the MVP:
 
-- Token SPL.
-- Campaign bertahap atau milestone.
-- Voting donor.
-- Biaya platform.
-- Frontend lengkap.
-- KYC atau identitas legal creator.
-- Moderasi campaign.
+- SPL Tokens.
+- Phased or milestone campaigns.
+- Donor voting.
+- Platform fees.
+- A complete frontend.
+- KYC or legal identity of the creator.
+- Campaign moderation.
 
-## Terminologi
+## Terminology
 
-- **Campaign**: Data crowdfunding yang dibuat oleh creator.
-- **Creator**: Wallet yang membuat campaign dan berhak withdraw jika campaign sukses.
-- **Donor**: Wallet yang memberikan kontribusi ke campaign.
-- **Vault**: PDA milik program yang menyimpan SOL kontribusi.
-- **Contribution**: Data kontribusi per donor per campaign.
-- **Goal**: Target dana campaign dalam lamports.
-- **Deadline**: Unix timestamp saat campaign berakhir.
-- **Raised**: Total lamports yang sudah dikontribusikan.
-- **Claimed**: Penanda bahwa dana campaign sukses sudah ditarik creator.
+- **Campaign**: The crowdfunding data created by the creator.
+- **Creator**: The wallet that creates the campaign and has the right to withdraw if the campaign is successful.
+- **Donor**: A wallet that makes a contribution to the campaign.
+- **Vault**: The program's PDA that holds the SOL contributions.
+- **Contribution**: The contribution data per donor per campaign.
+- **Goal**: The campaign funding target in lamports.
+- **Deadline**: The Unix timestamp when the campaign ends.
+- **Raised**: The total lamports that have been contributed.
+- **Claimed**: A flag indicating that successful campaign funds have been withdrawn by the creator.
 
-## Model Akun
+## Account Model
 
 ### Campaign Account
 
-Menyimpan state utama campaign.
+Stores the main state of the campaign.
 
-Field awal:
+Initial fields:
 
 ```text
 creator: Pubkey
@@ -80,24 +80,24 @@ bump: u8
 vault_bump: u8
 ```
 
-Catatan:
+Notes:
 
-- `goal` disimpan dalam lamports.
-- `deadline` menggunakan unix timestamp dengan tipe `i64`, mengikuti `Clock::unix_timestamp` dari Solana.
-- `raised` dimulai dari `0`.
-- `claimed` dimulai dari `false`.
-- `bump` dan `vault_bump` disimpan agar PDA signing lebih eksplisit.
+- `goal` is stored in lamports.
+- `deadline` uses a unix timestamp with the `i64` type, following Solana's `Clock::unix_timestamp`.
+- `raised` starts at `0`.
+- `claimed` starts at `false`.
+- `bump` and `vault_bump` are stored so PDA signing is more explicit.
 
 ### Vault PDA
 
-Vault adalah PDA yang menyimpan SOL campaign.
+The Vault is a PDA that stores the campaign's SOL.
 
-Vault tidak perlu menyimpan data kompleks. Opsi implementasi:
+The Vault does not need to store complex data. Implementation options:
 
-- System account PDA dengan lamports saja.
-- PDA turunan dari campaign.
+- A PDA system account with just lamports.
+- A PDA derived from the campaign.
 
-Seed yang disarankan:
+Suggested seed:
 
 ```text
 vault = ["vault", campaign.key()]
@@ -105,9 +105,9 @@ vault = ["vault", campaign.key()]
 
 ### Contribution Account
 
-Contribution dibutuhkan agar refund dapat dilakukan dengan benar per donor.
+The Contribution is needed so that refunds can be processed correctly per donor.
 
-Field awal:
+Initial fields:
 
 ```text
 campaign: Pubkey
@@ -117,25 +117,25 @@ refunded: bool
 bump: u8
 ```
 
-Seed yang disarankan:
+Suggested seed:
 
 ```text
 contribution = ["contribution", campaign.key(), donor.key()]
 ```
 
-Alasan akun contribution diperlukan:
+Reasons the contribution account is required:
 
-- Program harus tahu berapa jumlah refund donor.
-- Program harus mencegah refund ganda.
-- Program harus tetap bisa menerima beberapa kontribusi dari donor yang sama dengan menambah `amount`.
+- The program must know the refund amount for the donor.
+- The program must prevent double refunds.
+- The program must still be able to accept multiple contributions from the same donor by adding to `amount`.
 
-## Spesifikasi Teknis Rust/Solana
+## Rust/Solana Technical Specifications
 
-Bagian ini menjadi rujukan teknis minimum untuk implementasi program Solana.
+This section serves as the minimum technical reference for implementing the Solana program.
 
-### Struktur Data Campaign
+### Campaign Data Structure
 
-State utama campaign disimpan dalam account `Campaign`.
+The main campaign state is stored in the `Campaign` account.
 
 ```rust
 pub struct Campaign {
@@ -147,17 +147,17 @@ pub struct Campaign {
 }
 ```
 
-Catatan implementasi:
+Implementation notes:
 
-- `creator` adalah wallet pembuat campaign dan satu-satunya signer yang boleh melakukan withdraw.
-- `goal` dan `raised` menggunakan lamports.
-- `deadline` memakai `i64` karena `Clock::unix_timestamp` di Solana juga bertipe `i64`.
-- `claimed` mencegah withdraw ganda.
-- Implementasi final kemungkinan perlu menambahkan `bump` atau metadata lain jika memakai Anchor PDA account.
+- `creator` is the wallet of the campaign creator and the only signer allowed to withdraw.
+- `goal` and `raised` use lamports.
+- `deadline` uses `i64` because `Clock::unix_timestamp` in Solana is also of type `i64`.
+- `claimed` prevents double withdrawals.
+- The final implementation will likely need to add `bump` or other metadata if using Anchor PDA accounts.
 
 ### The Vault
 
-Donasi tidak boleh dikirim langsung ke creator. Semua dana kontribusi harus masuk ke Program Derived Address (PDA) sebagai vault yang dikontrol program.
+Donations must not be sent directly to the creator. All contribution funds must go to a Program Derived Address (PDA) acting as a vault controlled by the program.
 
 ```rust
 // Derive the vault address
@@ -174,27 +174,27 @@ invoke_signed(
 )?;
 ```
 
-Penjelasan:
+Explanation:
 
-- PDA adalah account yang alamatnya diturunkan secara deterministik dari seed dan `program_id`.
-- PDA tidak memiliki private key.
-- Program dapat "sign" untuk PDA menggunakan seed yang sama melalui `invoke_signed`.
-- Dengan vault PDA, creator tidak dapat mengambil dana sebelum kondisi withdraw valid.
-- Seed vault yang digunakan:
+- A PDA is an account whose address is derived deterministically from a seed and the `program_id`.
+- PDAs do not have private keys.
+- The program can "sign" for a PDA using the same seed via `invoke_signed`.
+- With a PDA vault, the creator cannot take the funds before the withdraw conditions are valid.
+- The vault seed used:
 
 ```text
 ["vault", campaign_account.key]
 ```
 
-Aturan penggunaan vault:
+Rules for using the vault:
 
-- Saat `contribute`, transfer dilakukan dari donor ke vault PDA.
-- Saat `withdraw`, transfer dilakukan dari vault PDA ke creator menggunakan `invoke_signed`.
-- Saat `refund`, transfer dilakukan dari vault PDA ke donor menggunakan `invoke_signed`.
+- During `contribute`, the transfer is made from the donor to the vault PDA.
+- During `withdraw`, the transfer is made from the vault PDA to the creator using `invoke_signed`.
+- During `refund`, the transfer is made from the vault PDA to the donor using `invoke_signed`.
 
 ### Getting Current Time
 
-Program harus menggunakan waktu on-chain dari Solana `Clock`, bukan timestamp dari client.
+The program must use the on-chain time from the Solana `Clock`, not the timestamp from the client.
 
 ```rust
 use solana_program::clock::Clock;
@@ -204,18 +204,18 @@ let clock = Clock::get()?;
 let current_time = clock.unix_timestamp;
 ```
 
-Penggunaan:
+Usage:
 
-- `create_campaign`: valid jika `deadline > current_time`.
-- `contribute`: valid jika `current_time < campaign.deadline`.
-- `withdraw`: valid jika `current_time >= campaign.deadline`.
-- `refund`: valid jika `current_time >= campaign.deadline`.
+- `create_campaign`: valid if `deadline > current_time`.
+- `contribute`: valid if `current_time < campaign.deadline`.
+- `withdraw`: valid if `current_time >= campaign.deadline`.
+- `refund`: valid if `current_time >= campaign.deadline`.
 
-## Instruksi Program
+## Program Instructions
 
 ### 1. Create Campaign
 
-Creator membuat campaign baru.
+The creator creates a new campaign.
 
 Input:
 
@@ -224,12 +224,12 @@ goal: u64
 deadline: i64
 ```
 
-Validasi:
+Validation:
 
-- `deadline` harus lebih besar dari current unix timestamp.
-- `goal` sebaiknya lebih besar dari `0`.
+- `deadline` must be greater than the current unix timestamp.
+- `goal` should be greater than `0`.
 
-State yang disimpan:
+State stored:
 
 ```text
 creator = creator.key()
@@ -245,20 +245,20 @@ Log:
 Campaign created: goal={goal}, deadline={deadline}
 ```
 
-Catatan desain:
+Design notes:
 
-- Campaign PDA perlu seed yang stabil. Jika satu creator boleh membuat banyak campaign, gunakan campaign id atau counter.
-- Untuk MVP paling sederhana, campaign dapat dibuat dengan seed:
+- The Campaign PDA needs a stable seed. If one creator can make multiple campaigns, use a campaign id or counter.
+- For the simplest MVP, a campaign can be created with the seed:
 
 ```text
 campaign = ["campaign", creator.key(), campaign_id]
 ```
 
-`campaign_id` dapat berupa `u64` dari input atau timestamp yang diberikan client, tetapi lebih aman jika desain final memilih satu pendekatan eksplisit sebelum coding.
+`campaign_id` can be a `u64` from the input or a timestamp provided by the client, but it's safer if the final design chooses one explicit approach before coding.
 
 ### 2. Contribute
 
-Donor mengirim SOL ke campaign vault.
+The donor sends SOL to the campaign vault.
 
 Input:
 
@@ -266,18 +266,18 @@ Input:
 amount: u64
 ```
 
-Validasi:
+Validation:
 
-- `amount` harus lebih besar dari `0`.
-- Current time sebaiknya lebih kecil dari `deadline` agar campaign yang sudah berakhir tidak menerima kontribusi baru.
-- Campaign belum `claimed`.
+- `amount` must be greater than `0`.
+- The current time should be less than the `deadline` so campaigns that have ended don't receive new contributions.
+- The campaign has not been `claimed`.
 
-Logika:
+Logic:
 
-- Transfer SOL dari donor ke campaign vault PDA.
+- Transfer SOL from the donor to the campaign vault PDA.
 - Update `campaign.raised += amount`.
-- Buat atau update `Contribution Account`.
-- Jika donor sudah pernah contribute, tambahkan `amount` ke contribution sebelumnya.
+- Create or update the `Contribution Account`.
+- If the donor has contributed before, add `amount` to the previous contribution.
 
 Log:
 
@@ -285,26 +285,26 @@ Log:
 Contributed: {amount} lamports, total={raised}
 ```
 
-Catatan penting:
+Important notes:
 
-- Gunakan checked arithmetic untuk menghindari overflow pada `raised += amount`.
-- Jangan transfer langsung ke creator.
+- Use checked arithmetic to avoid overflows on `raised += amount`.
+- Do not transfer directly to the creator.
 
 ### 3. Withdraw
 
-Creator mengklaim dana jika campaign sukses.
+The creator claims the funds if the campaign is successful.
 
-Kondisi:
+Conditions:
 
 - `campaign.raised >= campaign.goal`
 - Current time `>= campaign.deadline`
-- Caller adalah `campaign.creator`
-- Campaign belum pernah claimed
+- Caller is `campaign.creator`
+- Campaign has never been claimed
 
-Logika:
+Logic:
 
-- Transfer semua SOL yang tersedia di vault ke creator.
-- Tandai `campaign.claimed = true`.
+- Transfer all available SOL in the vault to the creator.
+- Mark `campaign.claimed = true`.
 
 Log:
 
@@ -312,29 +312,29 @@ Log:
 Withdrawn: {amount} lamports
 ```
 
-Catatan penting:
+Important notes:
 
-- Amount yang ditarik sebaiknya dihitung dari lamports vault yang tersedia, dengan tetap menjaga rent exemption jika vault berupa account yang harus tetap hidup.
-- Jika vault adalah system account PDA tanpa data, desain close/transfer perlu dipastikan sesuai pola Anchor yang dipakai.
-- Setelah `claimed = true`, refund tidak boleh dilakukan.
+- The amount withdrawn should be calculated from the available vault lamports, while maintaining rent exemption if the vault is an account that must stay alive.
+- If the vault is a system account PDA without data, the close/transfer design needs to ensure it follows the Anchor pattern being used.
+- After `claimed = true`, refunds cannot be made.
 
 ### 4. Refund
 
-Donor mengambil kembali kontribusinya jika campaign gagal.
+The donor takes back their contribution if the campaign fails.
 
-Kondisi:
+Conditions:
 
 - `campaign.raised < campaign.goal`
 - Current time `>= campaign.deadline`
-- Contribution milik donor ada.
-- Contribution belum refunded.
-- Campaign belum claimed.
+- The contribution belonging to the donor exists.
+- The contribution has not been refunded.
+- The campaign has not been claimed.
 
-Logika:
+Logic:
 
-- Transfer jumlah contribution donor dari vault kembali ke donor.
-- Tandai `contribution.refunded = true`.
-- Set `contribution.amount = 0` setelah transfer agar state konsisten.
+- Transfer the donor's contribution amount from the vault back to the donor.
+- Mark `contribution.refunded = true`.
+- Set `contribution.amount = 0` after the transfer so the state is consistent.
 
 Log:
 
@@ -342,10 +342,10 @@ Log:
 Refunded: {amount} lamports
 ```
 
-Catatan koreksi penting:
+Important correction note:
 
-- Refund seharusnya mentransfer dana **dari vault ke donor**, bukan dari donor ke vault.
-- Jika semua donor sudah refund, campaign account dapat dibiarkan tetap ada untuk audit trail atau ditutup pada fitur lanjutan.
+- A refund should transfer funds **from the vault to the donor**, not from the donor to the vault.
+- If all donors have refunded, the campaign account can be left as is for an audit trail or closed in advanced features.
 
 ## State Machine
 
@@ -362,31 +362,31 @@ Ended Failed
   -> Refunded per donor
 ```
 
-Aturan:
+Rules:
 
-- Contribute hanya boleh sebelum deadline.
-- Withdraw hanya boleh setelah deadline dan jika goal tercapai.
-- Refund hanya boleh setelah deadline dan jika goal tidak tercapai.
-- Campaign sukses tidak boleh refund.
-- Campaign gagal tidak boleh withdraw.
-- Campaign yang sudah claimed tidak boleh menerima kontribusi atau refund.
+- Contribute is only allowed before the deadline.
+- Withdraw is only allowed after the deadline and if the goal is met.
+- Refund is only allowed after the deadline and if the goal is not met.
+- A successful campaign cannot refund.
+- A failed campaign cannot withdraw.
+- A claimed campaign cannot receive contributions or refunds.
 
 ## Security And Correctness Notes
 
-- Gunakan PDA untuk vault agar creator tidak dapat mengambil dana sebelum syarat terpenuhi.
-- Gunakan `Clock` sysvar untuk membaca current unix timestamp.
-- Gunakan checked arithmetic untuk semua penjumlahan lamports.
-- Validasi semua signer dan ownership account.
-- Pastikan contribution account selalu cocok dengan campaign dan donor.
-- Cegah double refund dengan `refunded`.
-- Cegah double withdraw dengan `claimed`.
-- Jangan percaya timestamp dari client untuk validasi waktu.
-- Jangan izinkan campaign menerima kontribusi setelah deadline.
-- Pertimbangkan overflow dan underflow lamports.
+- Use a PDA for the vault so the creator cannot take funds before the conditions are met.
+- Use the `Clock` sysvar to read the current unix timestamp.
+- Use checked arithmetic for all lamport additions.
+- Validate all signers and account ownerships.
+- Ensure the contribution account always matches the campaign and donor.
+- Prevent double refunds using `refunded`.
+- Prevent double withdrawals using `claimed`.
+- Do not trust the timestamp from the client for time validation.
+- Do not allow a campaign to receive contributions after the deadline.
+- Consider lamport overflow and underflow.
 
-## Error Cases Awal
+## Initial Error Cases
 
-Nama error yang disarankan:
+Suggested error names:
 
 ```text
 InvalidGoal
@@ -405,7 +405,7 @@ InsufficientVaultBalance
 
 ## Event / Log Strategy
 
-Minimal sesuai requirement:
+Minimum according to requirements:
 
 ```text
 Campaign created: goal={goal}, deadline={deadline}
@@ -414,7 +414,7 @@ Withdrawn: {amount} lamports
 Refunded: {amount} lamports
 ```
 
-Jika menggunakan Anchor, event terstruktur juga bisa ditambahkan nanti:
+If using Anchor, structured events can also be added later:
 
 ```text
 CampaignCreated
@@ -423,33 +423,33 @@ CampaignWithdrawn
 ContributionRefunded
 ```
 
-Untuk MVP, log string requirement tetap harus dipertahankan agar behavior mudah diverifikasi.
+For the MVP, string log requirements must be maintained so behavior is easily verified.
 
-## Testing Plan Awal
+## Initial Testing Plan
 
-Unit/integration test yang harus ada saat implementasi:
+Unit/integration tests that must exist during implementation:
 
-1. Create campaign berhasil dengan deadline masa depan.
-2. Create campaign gagal jika deadline sudah lewat.
-3. Create campaign gagal jika goal `0`.
-4. Contribute berhasil dan meningkatkan `raised`.
-5. Contribute dari donor yang sama mengakumulasi contribution.
-6. Contribute gagal jika amount `0`.
-7. Contribute gagal setelah deadline.
-8. Withdraw berhasil jika raised >= goal dan deadline lewat.
-9. Withdraw gagal jika caller bukan creator.
-10. Withdraw gagal jika goal belum tercapai.
-11. Withdraw gagal sebelum deadline.
-12. Withdraw gagal dua kali.
-13. Refund berhasil jika goal gagal dan deadline lewat.
-14. Refund gagal jika campaign sukses.
-15. Refund gagal sebelum deadline.
-16. Refund gagal dua kali.
-17. Refund hanya mengembalikan amount milik donor terkait.
+1. Create campaign succeeds with a future deadline.
+2. Create campaign fails if the deadline has passed.
+3. Create campaign fails if the goal is `0`.
+4. Contribute succeeds and increases `raised`.
+5. Contribute from the same donor accumulates the contribution.
+6. Contribute fails if the amount is `0`.
+7. Contribute fails after the deadline.
+8. Withdraw succeeds if raised >= goal and the deadline has passed.
+9. Withdraw fails if the caller is not the creator.
+10. Withdraw fails if the goal hasn't been met.
+11. Withdraw fails before the deadline.
+12. Withdraw fails twice.
+13. Refund succeeds if the goal failed and the deadline has passed.
+14. Refund fails if the campaign is successful.
+15. Refund fails before the deadline.
+16. Refund fails twice.
+17. Refund only returns the amount belonging to the respective donor.
 
 ## QA Specification
 
-Bagian ini digunakan sebagai checklist penerimaan kualitas untuk memastikan implementasi tidak menyimpang dari tujuan escrow crowdfunding.
+This section is used as a quality acceptance checklist to ensure the implementation doesn't deviate from the goal of an escrow crowdfunding platform.
 
 ### Success Criteria
 
@@ -462,7 +462,7 @@ Bagian ini digunakan sebagai checklist penerimaan kualitas untuk memastikan impl
 
 ### Testing Checklist
 
-Skenario happy path campaign sukses:
+Happy path successful campaign scenario:
 
 1. Create a campaign with `goal = 1000 SOL`, `deadline = tomorrow`.
 2. Contribute `600 SOL`; should succeed and `raised = 600 SOL`.
@@ -472,10 +472,10 @@ Skenario happy path campaign sukses:
 6. Withdraw should succeed.
 7. Try withdraw again; should fail because campaign is already claimed.
 
-Catatan:
+Notes:
 
-- Nilai SOL pada checklist adalah skenario QA tingkat produk. Dalam implementasi dan test, nilai harus dikonversi ke lamports.
-- Untuk automated test, "wait until after deadline" sebaiknya dibuat dengan deadline pendek atau manipulasi local validator/test context jika tersedia.
+- SOL values in the checklist are for product-level QA scenarios. In implementation and testing, values must be converted to lamports.
+- For automated tests, "wait until after deadline" should ideally be done with a short deadline or by manipulating the local validator/test context if available.
 
 ### Common Pitfalls
 
@@ -495,7 +495,7 @@ Do handle errors properly.
 
 ## Resources
 
-Referensi teknis yang harus digunakan saat implementasi:
+Technical references that must be used during implementation:
 
 1. **Program Derived Address (PDA)**
 
@@ -505,11 +505,11 @@ Referensi teknis yang harus digunakan saat implementasi:
    https://solanacookbook.com/core-concepts/pdas.html
    ```
 
-   Catatan:
+   Notes:
 
-   - Link Solana Cookbook ini saat ini mengarah ke dokumentasi Solana resmi tentang Program-Derived Address.
-   - Gunakan referensi ini untuk memahami seed, bump, canonical bump, dan alasan PDA tidak memiliki private key.
-   - Relevan langsung untuk desain vault:
+   - This Solana Cookbook link currently points to the official Solana documentation on Program-Derived Addresses.
+   - Use this reference to understand seeds, bumps, canonical bumps, and the reason PDAs don't have private keys.
+   - Directly relevant for vault design:
 
    ```text
    ["vault", campaign_account.key]
@@ -523,98 +523,98 @@ Referensi teknis yang harus digunakan saat implementasi:
    https://solanacookbook.com/references/programs.html#how-to-do-cross-program-invocation
    ```
 
-   Catatan:
+   Notes:
 
-   - Gunakan referensi ini untuk memahami cara program memanggil instruction program lain.
-   - Relevan untuk transfer SOL melalui System Program.
-   - Relevan untuk penggunaan `invoke` saat donor mengirim SOL ke vault.
-   - Relevan untuk penggunaan `invoke_signed` saat program mentransfer SOL dari vault PDA ke creator atau donor.
+   - Use this reference to understand how a program calls another program's instruction.
+   - Relevant for transferring SOL via the System Program.
+   - Relevant for using `invoke` when a donor sends SOL to the vault.
+   - Relevant for using `invoke_signed` when the program transfers SOL from the vault PDA to the creator or donor.
 
 3. **Clock / Current Time**
 
-   Referensi terkait berada pada halaman Writing Programs Solana Cookbook:
+   Related references are on the Writing Programs page of the Solana Cookbook:
 
    ```text
    https://solanacookbook.com/references/programs.html#how-to-get-clock-in-a-program
    ```
 
-   Catatan:
+   Notes:
 
-   - Gunakan `Clock::get()?.unix_timestamp` sebagai sumber waktu on-chain.
-   - Jangan menerima current time dari client untuk validasi deadline.
+   - Use `Clock::get()?.unix_timestamp` as the on-chain time source.
+   - Do not accept the current time from the client for deadline validation.
 
 ## Deliverables
 
-Deliverables yang harus tersedia saat proyek dianggap selesai:
+Deliverables that must be available when the project is considered complete:
 
 1. **Rust Program Code**
 
-   Status awal: belum tersedia.
+   Initial status: not available yet.
 
-   Yang harus disediakan:
+   Must provide:
 
-   - Source code program Solana dalam Rust.
-   - Implementasi instruction:
+   - Solana program source code in Rust.
+   - Instruction implementation:
      - `create_campaign`
      - `contribute`
      - `withdraw`
      - `refund`
-   - Definisi account/state:
+   - Account/state definitions:
      - `Campaign`
      - `Contribution`
      - Vault PDA
-   - Error handling tanpa penggunaan `unwrap()` yang tidak aman.
-   - Test yang memverifikasi success criteria dan failure cases.
+   - Error handling without using unsafe `unwrap()`.
+   - Tests that verify success criteria and failure cases.
 
 2. **Deployed To Solana Devnet**
 
-   Status awal: belum tersedia.
+   Initial status: not available yet.
 
-   Yang harus disediakan:
+   Must provide:
 
-   - Program berhasil di-build.
-   - Program berhasil di-deploy ke Solana Devnet.
-   - Network target yang digunakan:
+   - Program successfully built.
+   - Program successfully deployed to the Solana Devnet.
+   - Target network used:
 
    ```text
    devnet
    ```
 
-   Bukti minimal:
+   Minimum proof:
 
-   - Output deploy command.
-   - Program address hasil deploy.
-   - Explorer link Devnet jika tersedia.
+   - Deploy command output.
+   - Deployed program address.
+   - Devnet explorer link if available.
 
 3. **Program ID**
 
-   Status awal: belum tersedia.
+   Initial status: not available yet.
 
-   Yang harus disediakan:
+   Must provide:
 
    ```text
    Program ID: <to be filled after deploy>
    ```
 
-   Catatan:
+   Notes:
 
-   - Program ID harus dicatat setelah deploy berhasil.
-   - Program ID harus konsisten dengan konfigurasi client/test.
-   - Jika menggunakan Anchor, `Anchor.toml` dan `declare_id!()` harus selaras dengan Program ID hasil deploy.
+   - The Program ID must be recorded after a successful deployment.
+   - The Program ID must be consistent with the client/test configuration.
+   - If using Anchor, `Anchor.toml` and `declare_id!()` must align with the deployed Program ID.
 
 4. **Test Transaction Signatures**
 
-   Status awal: belum tersedia.
+   Initial status: not available yet.
 
-   Yang harus disediakan:
+   Must provide:
 
-   - Signature transaksi create campaign.
-   - Signature transaksi contribute.
-   - Signature transaksi withdraw untuk campaign sukses.
-   - Signature transaksi refund untuk campaign gagal.
-   - Signature transaksi gagal tidak selalu tersedia sebagai finalized transaction, tetapi failure case tetap harus dibuktikan lewat test output.
+   - Create campaign transaction signature.
+   - Contribute transaction signature.
+   - Withdraw transaction signature for a successful campaign.
+   - Refund transaction signature for a failed campaign.
+   - Signatures for failed transactions are not always available as finalized transactions, but failure cases must still be proven via test output.
 
-   Format pencatatan:
+   Recording format:
 
    ```text
    Create Campaign Signature: <signature>
@@ -623,41 +623,41 @@ Deliverables yang harus tersedia saat proyek dianggap selesai:
    Refund Signature: <signature>
    ```
 
-   Jika memungkinkan, tambahkan explorer link Devnet untuk setiap signature:
+   If possible, add a Devnet explorer link for each signature:
 
    ```text
    https://explorer.solana.com/tx/<signature>?cluster=devnet
    ```
 
-## Open Decisions Sebelum Coding
+## Open Decisions Before Coding
 
-Hal yang perlu diputuskan sebelum implementasi:
+Things that need to be decided before implementation:
 
-1. Nama final project: gunakan **VaultRaise** sementara.
-2. Framework program: disarankan Anchor untuk ergonomi akun, PDA, dan test.
-3. Seed campaign: perlu `campaign_id` eksplisit jika creator bisa membuat banyak campaign.
-4. Apakah campaign account akan pernah ditutup atau dibiarkan sebagai audit trail.
-5. Apakah platform akan mengambil fee di versi lanjutan.
-6. Apakah campaign boleh menerima kontribusi setelah goal tercapai tetapi sebelum deadline.
+1. Final project name: use **VaultRaise** temporarily.
+2. Program framework: Anchor is recommended for account ergonomics, PDAs, and tests.
+3. Campaign seed: needs an explicit `campaign_id` if a creator can make multiple campaigns.
+4. Whether the campaign account will ever be closed or left as an audit trail.
+5. Whether the platform will take a fee in advanced versions.
+6. Whether the campaign can receive contributions after the goal is reached but before the deadline.
 
-Keputusan MVP yang disarankan:
+Suggested MVP decisions:
 
-- Gunakan Anchor.
-- Gunakan `campaign_id: u64` saat create campaign.
-- Izinkan kontribusi tetap masuk sebelum deadline walaupun goal sudah tercapai.
-- Jangan tutup campaign account pada MVP.
-- Jangan ada fee platform pada MVP.
+- Use Anchor.
+- Use `campaign_id: u64` when creating a campaign.
+- Allow contributions to come in before the deadline even if the goal has been reached.
+- Do not close campaign accounts in the MVP.
+- Do not have platform fees in the MVP.
 
-## Acceptance Criteria MVP
+## MVP Acceptance Criteria
 
-Program dianggap sesuai konteks jika:
+The program is considered to match the context if:
 
-- Creator bisa membuat campaign dengan goal dan deadline.
-- Donor bisa contribute SOL ke vault PDA, bukan ke creator.
-- Total raised tercatat benar.
-- Creator hanya bisa withdraw setelah deadline jika goal tercapai.
-- Donor hanya bisa refund setelah deadline jika goal gagal.
-- Dana tidak bisa diambil creator sebelum kondisi withdraw valid.
-- Donor tidak bisa refund dua kali.
-- Creator tidak bisa withdraw dua kali.
-- Log sesuai requirement utama.
+- A creator can create a campaign with a goal and deadline.
+- A donor can contribute SOL to the vault PDA, not to the creator.
+- The total raised is accurately recorded.
+- The creator can only withdraw after the deadline if the goal is reached.
+- A donor can only refund after the deadline if the goal failed.
+- Funds cannot be taken by the creator before the withdraw conditions are valid.
+- A donor cannot refund twice.
+- The creator cannot withdraw twice.
+- Logs match the primary requirements.
