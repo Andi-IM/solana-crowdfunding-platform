@@ -14,7 +14,7 @@ pub fn program_test() -> ProgramTest {
 #[tokio::test]
 async fn test_campaign_creation_success() {
     let program_test = program_test();
-    let (mut banks_client, payer, recent_blockhash) = program_test.start().await;
+    let (banks_client, payer, recent_blockhash) = program_test.start().await;
 
     let campaign_id = 1u64;
     let goal = 10_000_000u64; // 0.01 SOL
@@ -69,7 +69,7 @@ async fn test_campaign_creation_success() {
 #[tokio::test]
 async fn test_campaign_creation_fails_past_deadline() {
     let program_test = program_test();
-    let (mut banks_client, payer, recent_blockhash) = program_test.start().await;
+    let (banks_client, payer, recent_blockhash) = program_test.start().await;
 
     let campaign_id = 2u64;
     let goal = 10_000_000u64; 
@@ -116,7 +116,7 @@ async fn test_campaign_creation_fails_past_deadline() {
 #[tokio::test]
 async fn test_campaign_creation_fails_zero_goal() {
     let program_test = program_test();
-    let (mut banks_client, payer, recent_blockhash) = program_test.start().await;
+    let (banks_client, payer, recent_blockhash) = program_test.start().await;
 
     let campaign_id = 3u64;
     let goal = 0u64; // Zero goal is invalid
