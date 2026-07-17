@@ -138,3 +138,25 @@ Evidence:
 - `anchor-lang` dependency updated to include `init-if-needed` feature in `Cargo.toml`.
 - `contribute` logic successfully performs valid checks, CPI, and state updates.
 - `cargo check` completed successfully in WSL.
+
+## VR-006 - Implement Withdraw Instruction
+
+Status: Done
+
+Started: 2026-07-17
+Completed: 2026-07-17
+
+Scope:
+
+- Add `withdraw` instruction and `Withdraw` accounts struct.
+- Validate `raised >= goal`, `current_time >= deadline`, and `!claimed`.
+- Use Anchor's `has_one = creator` to authorize caller.
+- Transfer SOL from vault PDA to creator via signed CPI.
+- Set `claimed = true`.
+- Log the withdrawn amount.
+
+Evidence:
+
+- Validations match conditions precisely and use specific `VaultRaiseError` variants.
+- PDA signatures are used securely (`CpiContext::new_with_signer`).
+- `cargo check` completed successfully.

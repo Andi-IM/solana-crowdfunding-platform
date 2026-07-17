@@ -80,6 +80,43 @@ pub mod vault_raise {
 
         Ok(())
     }
+
+    pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
+        let current_time = Clock::get()?.unix_timestamp;
+        let campaign = &mut ctx.accounts.campaign;
+
+        require!(campaign.raised >= campaign.goal, VaultRaiseError::CampaignNotSuccessful);
+        require!(current_time >= campaign.deadline, VaultRaiseError::CampaignNotEnded);
+        require!(!campaign.claimed, VaultRaiseError::AlreadyClaimed);
+
+        let amount = ctx.accounts.vault.lamports();
+        
+        let campaign_key = campaign.key();
+        let vault_bump = campaign.vault_bump;
+        let seeds = &[
+            b"vault".as_ref(),
+            campaign_key.as_ref(),
+            &[vault_bump],
+        ];
+        let signer_seeds = &[&seeds[..]];
+
+        let cpi_context = CpiContext::new_with_signer(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.vault.to_account_info(),
+                to: ctx.accounts.creator.to_account_info(),
+            },
+            signer_seeds,
+        );
+
+        anchor_lang::system_program::transfer(cpi_context, amount)?;
+
+        campaign.claimed = true;
+
+        msg!("Withdrawn: {} lamports", amount);
+
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -132,6 +169,28 @@ pub struct Contribute<'info> {
 
     #[account(mut)]
     pub donor: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct Withdraw<'info> {
+    #[account(
+        mut,
+        has_one = creator @ VaultRaiseError::UnauthorizedCreator
+    )]
+    pub campaign: Account<'info, Campaign>,
+
+    /// CHECK: Vault PDA to hold campaign funds.
+    #[account(
+        mut,
+        seeds = [b"vault", campaign.key().as_ref()],
+        bump = campaign.vault_bump
+    )]
+    pub vault: SystemAccount<'info>,
+
+    #[account(mut)]
+    pub creator: Signer<'info>,
 
     pub system_program: Program<'info, System>,
 }
