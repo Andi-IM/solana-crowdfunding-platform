@@ -38,6 +38,9 @@ jobs:
           sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_CLI_VERSION }}/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
+      - name: Build Solana Program (SBF)
+        run: cargo build-sbf
+
       - name: Run Cargo Check
         run: cargo check --verbose
 
