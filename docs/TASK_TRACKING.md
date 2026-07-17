@@ -21,7 +21,6 @@ Evidence:
 - `Anchor.toml` exists.
 - Root `Cargo.toml` workspace exists.
 - Program crate exists at `programs/vault_raise`.
-- Placeholder test harness exists at `tests/vault_raise.ts`.
 - `cargo check` completed successfully.
 
 Environment Note:
@@ -47,3 +46,8 @@ Follow-up Environment Work:
 - Downgraded locked `unicode-segmentation` to `1.12.0` for compatibility with Solana SBF Rust 1.79.
 - Added program `idl-build` feature required by Anchor CLI `0.31.1`.
 - `anchor build` completed successfully from WSL.
+
+Follow-up Cleanup:
+
+- Removed Node.js/TypeScript scaffold files from the project.
+- Removed Yarn/ts-mocha test script from `Anchor.toml`.

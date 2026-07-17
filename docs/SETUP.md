@@ -7,7 +7,6 @@ This project is scaffolded as an Anchor-based Solana program.
 - Rust and Cargo
 - Solana CLI
 - Anchor CLI
-- Node.js package manager compatible with Anchor tests
 
 Verified WSL tool versions:
 
@@ -24,7 +23,6 @@ avm 1.1.2
 - `Anchor.toml`: Anchor workspace configuration.
 - `Cargo.toml`: Rust workspace configuration.
 - `programs/vault_raise`: Solana program crate.
-- `tests/vault_raise.ts`: placeholder TypeScript test harness.
 
 ## Basic Commands
 
@@ -61,3 +59,4 @@ Inside WSL, the project path is:
 - `anchor` and `solana` are available in WSL Ubuntu after sourcing the user profile.
 - The current `declare_id!()` and `Anchor.toml` program ID use the placeholder system program address. Replace them with the real program ID before deployment.
 - Some lockfile dependencies are intentionally pinned to versions compatible with Solana SBF Rust/Cargo 1.79 used by Anchor CLI `0.31.1`.
+- Node.js/TypeScript test scaffolding has been removed from this project.
