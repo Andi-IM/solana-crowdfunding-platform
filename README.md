@@ -55,6 +55,13 @@ cargo check
 cargo test
 ```
 
+## Deployment
+
+The program has been deployed to the Solana Devnet.
+
+- **Devnet Program ID**: `GeYMy79EJmUs8japokaVcadb2RRs6vv7c4xYE2fbjkQW`
+- **Explorer Link**: [View on Solana Explorer](https://explorer.solana.com/address/GeYMy79EJmUs8japokaVcadb2RRs6vv7c4xYE2fbjkQW?cluster=devnet)
+
 ## Documentation
 
 For more in-depth information about the project's architecture, design decisions, and tasks, please refer to the `docs/` directory:

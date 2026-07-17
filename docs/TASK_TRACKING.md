@@ -304,3 +304,23 @@ Evidence:
 - `solana config get` points to devnet.
 - Keypair exists at `~/.config/solana/id.json`.
 - `Anchor.toml` updated.
+
+## VR-014 - Deploy Program To Solana Devnet
+
+Status: Done
+
+Started: 2026-07-17
+Completed: 2026-07-17
+
+Scope:
+
+- Final `anchor build` and `idl build` success.
+- Deploy the compiled `.so` binary to Devnet using `anchor deploy`.
+- Record the Devnet Program ID.
+- Ensure `lib.rs` and `Anchor.toml` are aligned with the new Program ID.
+
+Evidence:
+
+- Program ID: `GeYMy79EJmUs8japokaVcadb2RRs6vv7c4xYE2fbjkQW`
+- Explorer Link: [https://explorer.solana.com/address/GeYMy79EJmUs8japokaVcadb2RRs6vv7c4xYE2fbjkQW?cluster=devnet](https://explorer.solana.com/address/GeYMy79EJmUs8japokaVcadb2RRs6vv7c4xYE2fbjkQW?cluster=devnet)
+- Transaction Signature: `2P5s1G2YypWaZp2Nhn4XnpkY2Bad4vBjVPeiQ1ogLyArnMtGK71Tw171BTxhDXu7TNsv1wLo3SybfaWziKLonMeJ`
