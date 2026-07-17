@@ -1,0 +1,22 @@
+[package]
+name = "vault_raise"
+version = "0.1.0"
+description = "Solana crowdfunding escrow program"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "vault_raise"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+idl-build = ["anchor-lang/idl-build"]
+default = []
+
+[dependencies]
+anchor-lang.workspace = true

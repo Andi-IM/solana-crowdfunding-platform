@@ -1,0 +1,16 @@
+[workspace]
+members = [
+    "programs/vault_raise"
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/placeholder/vault-raise"
+
+[workspace.dependencies]
+anchor-lang = "0.31.1"
+
+[profile.release]
+overflow-checks = true
