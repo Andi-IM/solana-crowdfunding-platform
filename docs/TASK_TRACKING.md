@@ -203,3 +203,23 @@ Evidence:
 
 - `campaign_creation.rs` implemented with `anchor_lang::InstructionData` for instruction building.
 - Tests execute correctly using the `solana-program-test` local bank environment.
+
+## VR-009 - Write Tests For Contribution Flow
+
+Status: Done
+
+Started: 2026-07-17
+Completed: 2026-07-17
+
+Scope:
+
+- Create `tests/contribution_flow.rs` integration test suite.
+- Write `test_contribution_flow_success` to verify repeated contributions sum up correctly.
+- Write `test_contribution_fails_past_deadline` using `context.set_sysvar(&clock)` to warp time forward.
+- Write `test_contribution_fails_zero_amount` to ensure 0-amount contributions are rejected.
+- Validate campaign state properties (existence check).
+
+Evidence:
+
+- `contribution_flow.rs` implemented and passes all assertions.
+- Time manipulation correctly tests the deadline constraint.
