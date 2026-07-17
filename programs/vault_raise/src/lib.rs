@@ -6,9 +6,20 @@ declare_id!("GeYMy79EJmUs8japokaVcadb2RRs6vv7c4xYE2fbjkQW");
 pub mod vault_raise {
     use super::*;
 
+    /// Creates a new campaign account and records its vault PDA bump.
+    ///
+    /// `campaign_id` is part of the campaign PDA seed so one creator can own
+    /// multiple campaigns. `goal` is denominated in lamports and must be
+    /// greater than zero. `deadline` is a Unix timestamp and must be in the
+    /// future according to Solana's on-chain `Clock` sysvar.
+    ///
+    /// Side effects:
+    /// - Initializes the `Campaign` account.
+    /// - Validates the associated vault PDA.
+    /// - Emits a creation log for off-chain verification.
     pub fn create_campaign(
         ctx: Context<CreateCampaign>,
-        _campaign_id: u64,
+        campaign_id: u64,
         goal: u64,
         deadline: i64,
     ) -> Result<()> {
@@ -23,18 +34,36 @@ pub mod vault_raise {
         campaign.raised = 0;
         campaign.deadline = deadline;
         campaign.claimed = false;
+        campaign.status = CampaignStatus::Active;
         campaign.bump = ctx.bumps.campaign;
         campaign.vault_bump = ctx.bumps.vault;
 
-        // INTERNAL DOCUMENTATION:
-        // The creator must not receive donations directly. All contributions
-        // are stored in the program-controlled vault PDA.
+        // All contributions must go through the vault PDA so the creator cannot
+        // receive funds before the campaign success conditions are satisfied.
 
-        msg!("Campaign created: goal={}, deadline={}", goal, deadline);
+        emit!(CampaignCreated {
+            campaign: campaign.key(),
+            creator: campaign.creator,
+            campaign_id,
+            goal,
+            deadline,
+            vault: ctx.accounts.vault.key(),
+        });
 
         Ok(())
     }
 
+    /// Contributes native SOL to an active campaign vault.
+    ///
+    /// `amount` is denominated in lamports and must be greater than zero.
+    /// Contributions are only accepted before the campaign deadline and before
+    /// the campaign has been claimed. The donor's contribution account is
+    /// created on first contribution and accumulated on later contributions.
+    ///
+    /// Side effects:
+    /// - Transfers SOL from donor to the vault PDA through the System Program.
+    /// - Increments `campaign.raised` with checked arithmetic.
+    /// - Creates or updates the donor's `Contribution` account.
     pub fn contribute(ctx: Context<Contribute>, amount: u64) -> Result<()> {
         let current_time = Clock::get()?.unix_timestamp;
 
@@ -42,10 +71,18 @@ pub mod vault_raise {
 
         let campaign = &mut ctx.accounts.campaign;
 
-        require!(current_time < campaign.deadline, VaultRaiseError::CampaignEnded);
+        require!(
+            current_time < campaign.deadline,
+            VaultRaiseError::CampaignEnded
+        );
         require!(!campaign.claimed, VaultRaiseError::AlreadyClaimed);
+        require!(
+            campaign.status == CampaignStatus::Active,
+            VaultRaiseError::CampaignNotActive
+        );
 
-        // Transfer SOL from donor to vault
+        // Use the System Program for the lamport transfer; this preserves the
+        // campaign escrow invariant that funds are held by the vault PDA.
         let cpi_context = CpiContext::new(
             ctx.accounts.system_program.to_account_info(),
             anchor_lang::system_program::Transfer {
@@ -55,13 +92,11 @@ pub mod vault_raise {
         );
         anchor_lang::system_program::transfer(cpi_context, amount)?;
 
-        // Update campaign raised amount
         campaign.raised = campaign
             .raised
             .checked_add(amount)
             .ok_or(VaultRaiseError::ArithmeticOverflow)?;
 
-        // Create or update contribution account
         let contribution = &mut ctx.accounts.contribution;
         if contribution.amount == 0 && !contribution.refunded {
             contribution.campaign = campaign.key();
@@ -76,28 +111,43 @@ pub mod vault_raise {
                 .ok_or(VaultRaiseError::ArithmeticOverflow)?;
         }
 
-        msg!("Contributed: {} lamports, total={}", amount, campaign.raised);
+        emit!(CampaignContributed {
+            campaign: campaign.key(),
+            donor: ctx.accounts.donor.key(),
+            amount,
+            total_raised: campaign.raised,
+        });
 
         Ok(())
     }
 
+    /// Withdraws all vault SOL to the campaign creator after a successful campaign.
+    ///
+    /// The campaign must have reached its goal, the deadline must have passed,
+    /// and the signer must match `campaign.creator`.
+    ///
+    /// Side effects:
+    /// - Transfers all vault lamports to the creator using the vault PDA signer.
+    /// - Marks the campaign as claimed to prevent a second withdrawal.
     pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
         let current_time = Clock::get()?.unix_timestamp;
         let campaign = &mut ctx.accounts.campaign;
 
-        require!(campaign.raised >= campaign.goal, VaultRaiseError::CampaignNotSuccessful);
-        require!(current_time >= campaign.deadline, VaultRaiseError::CampaignNotEnded);
+        require!(
+            campaign.raised >= campaign.goal,
+            VaultRaiseError::CampaignNotSuccessful
+        );
+        require!(
+            current_time >= campaign.deadline,
+            VaultRaiseError::CampaignNotEnded
+        );
         require!(!campaign.claimed, VaultRaiseError::AlreadyClaimed);
 
         let amount = ctx.accounts.vault.lamports();
-        
+
         let campaign_key = campaign.key();
-        let vault_bump = campaign.vault_bump;
-        let seeds = &[
-            b"vault".as_ref(),
-            campaign_key.as_ref(),
-            &[vault_bump],
-        ];
+        let vault_bump = [campaign.vault_bump];
+        let seeds = vault_signer_seeds(&campaign_key, &vault_bump);
         let signer_seeds = &[&seeds[..]];
 
         let cpi_context = CpiContext::new_with_signer(
@@ -112,31 +162,54 @@ pub mod vault_raise {
         anchor_lang::system_program::transfer(cpi_context, amount)?;
 
         campaign.claimed = true;
+        campaign.status = CampaignStatus::Claimed;
 
-        msg!("Withdrawn: {} lamports", amount);
+        emit!(CampaignWithdrawn {
+            campaign: campaign.key(),
+            creator: ctx.accounts.creator.key(),
+            amount,
+        });
 
         Ok(())
     }
 
+    /// Refunds a donor's recorded contribution after a failed campaign.
+    ///
+    /// The campaign must be past its deadline and below its funding goal. The
+    /// contribution account must belong to the donor and campaign enforced by
+    /// the account constraints.
+    ///
+    /// Side effects:
+    /// - Transfers the contribution amount from the vault PDA back to the donor.
+    /// - Marks the contribution as refunded to prevent double refunds.
     pub fn refund(ctx: Context<Refund>) -> Result<()> {
         let current_time = Clock::get()?.unix_timestamp;
         let campaign = &ctx.accounts.campaign;
         let contribution = &mut ctx.accounts.contribution;
 
-        require!(campaign.raised < campaign.goal, VaultRaiseError::CampaignNotFailed);
-        require!(current_time >= campaign.deadline, VaultRaiseError::CampaignNotEnded);
+        require!(
+            campaign.raised < campaign.goal,
+            VaultRaiseError::CampaignNotFailed
+        );
+        require!(
+            current_time >= campaign.deadline,
+            VaultRaiseError::CampaignNotEnded
+        );
+        require!(
+            campaign.status == CampaignStatus::Active,
+            VaultRaiseError::CampaignNotActive
+        );
         require!(!contribution.refunded, VaultRaiseError::AlreadyRefunded);
-        require!(contribution.amount > 0, VaultRaiseError::InvalidContributionAmount);
+        require!(
+            contribution.amount > 0,
+            VaultRaiseError::InvalidContributionAmount
+        );
 
         let amount = contribution.amount;
 
         let campaign_key = campaign.key();
-        let vault_bump = campaign.vault_bump;
-        let seeds = &[
-            b"vault".as_ref(),
-            campaign_key.as_ref(),
-            &[vault_bump],
-        ];
+        let vault_bump = [campaign.vault_bump];
+        let seeds = vault_signer_seeds(&campaign_key, &vault_bump);
         let signer_seeds = &[&seeds[..]];
 
         let cpi_context = CpiContext::new_with_signer(
@@ -152,20 +225,29 @@ pub mod vault_raise {
 
         contribution.refunded = true;
 
-        msg!("Refunded: {} lamports", amount);
+        emit!(ContributionRefunded {
+            campaign: campaign.key(),
+            donor: ctx.accounts.donor.key(),
+            amount,
+        });
 
         Ok(())
     }
 }
 
+fn vault_signer_seeds<'a>(campaign: &'a Pubkey, vault_bump: &'a [u8; 1]) -> [&'a [u8]; 3] {
+    [b"vault".as_ref(), campaign.as_ref(), vault_bump]
+}
+
 #[derive(Accounts)]
-#[instruction(_campaign_id: u64)]
+#[instruction(campaign_id: u64)]
+/// Accounts required to initialize a campaign and validate its vault PDA.
 pub struct CreateCampaign<'info> {
     #[account(
         init,
         payer = creator,
         space = Campaign::SPACE,
-        seeds = [b"campaign", creator.key().as_ref(), &_campaign_id.to_le_bytes()],
+        seeds = [b"campaign", creator.key().as_ref(), &campaign_id.to_le_bytes()],
         bump
     )]
     pub campaign: Account<'info, Campaign>,
@@ -185,6 +267,7 @@ pub struct CreateCampaign<'info> {
 }
 
 #[derive(Accounts)]
+/// Accounts required for a donor contribution into a campaign vault.
 pub struct Contribute<'info> {
     #[account(mut)]
     pub campaign: Account<'info, Campaign>,
@@ -213,6 +296,7 @@ pub struct Contribute<'info> {
 }
 
 #[derive(Accounts)]
+/// Accounts required for a creator withdrawal from a successful campaign.
 pub struct Withdraw<'info> {
     #[account(
         mut,
@@ -235,6 +319,7 @@ pub struct Withdraw<'info> {
 }
 
 #[derive(Accounts)]
+/// Accounts required for a donor refund from a failed campaign.
 pub struct Refund<'info> {
     pub campaign: Account<'info, Campaign>,
 
@@ -261,12 +346,14 @@ pub struct Refund<'info> {
 
 #[account]
 #[derive(InitSpace)]
+/// Persistent campaign state.
 pub struct Campaign {
     pub creator: Pubkey,
     pub goal: u64,
     pub raised: u64,
     pub deadline: i64,
     pub claimed: bool,
+    pub status: CampaignStatus,
     pub bump: u8,
     pub vault_bump: u8,
 }
@@ -277,6 +364,7 @@ impl Campaign {
 
 #[account]
 #[derive(InitSpace)]
+/// Per-donor contribution state used to calculate and gate refunds.
 pub struct Contribution {
     pub campaign: Pubkey,
     pub donor: Pubkey,
@@ -287,6 +375,45 @@ pub struct Contribution {
 
 impl Contribution {
     pub const SPACE: usize = 8 + Self::INIT_SPACE;
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace)]
+/// Explicit lifecycle marker for campaign state transitions.
+pub enum CampaignStatus {
+    Active,
+    Claimed,
+}
+
+#[event]
+pub struct CampaignCreated {
+    pub campaign: Pubkey,
+    pub creator: Pubkey,
+    pub campaign_id: u64,
+    pub goal: u64,
+    pub deadline: i64,
+    pub vault: Pubkey,
+}
+
+#[event]
+pub struct CampaignContributed {
+    pub campaign: Pubkey,
+    pub donor: Pubkey,
+    pub amount: u64,
+    pub total_raised: u64,
+}
+
+#[event]
+pub struct CampaignWithdrawn {
+    pub campaign: Pubkey,
+    pub creator: Pubkey,
+    pub amount: u64,
+}
+
+#[event]
+pub struct ContributionRefunded {
+    pub campaign: Pubkey,
+    pub donor: Pubkey,
+    pub amount: u64,
 }
 
 #[error_code]
@@ -315,4 +442,6 @@ pub enum VaultRaiseError {
     ArithmeticOverflow,
     #[msg("Vault balance is insufficient.")]
     InsufficientVaultBalance,
+    #[msg("Campaign is not active.")]
+    CampaignNotActive,
 }

@@ -4,18 +4,16 @@ This document contains instructions for setting up, building, testing, and deplo
 
 ## 1. Local Environment Setup
 
-- **Rust and Cargo**: v1.79.0 (Required for Solana SBF compatibility)
+- **Rust and Cargo**: Rust 2021 edition compatible toolchain
 - **Solana CLI**: v2.1.0
-- **Anchor CLI**: v0.31.1
+- **Anchor CLI / anchor-lang**: v0.32.1-compatible
 - **Node.js**: v20+ (for Devnet testing script)
 
 Verified WSL tool versions:
 
 ```text
-rustc 1.97.1
-cargo 1.97.1
 solana-cli 2.1.0
-anchor-cli 0.31.1
+anchor-lang 0.32.1
 ```
 
 To enter the WSL Ubuntu environment from Windows PowerShell:
@@ -25,21 +23,31 @@ wsl -d Ubuntu --cd /mnt/d/01_Projects/solana-crowdfunding-platform
 
 ## 2. Build Instructions
 
-To build the program and generate the IDL, run this inside WSL:
+To build the SBF program used by local integration tests, run this inside WSL:
+
+```bash
+cargo build-sbf --manifest-path programs/vault_raise/Cargo.toml
+```
+
+The compiled binary will be placed in `target/deploy/vault_raise.so`.
+
+If you also need to regenerate Anchor IDL artifacts, use an Anchor CLI version compatible with `anchor-lang 0.32.1`, then run:
 
 ```bash
 anchor build
 ```
-Note: Wait for the `idl build` to complete. If it gets stuck downloading crates, it's normal on the first run. The compiled binary will be placed in `target/deploy/vault_raise.so`.
 
 ## 3. Test Instructions
 
 **Unit Tests (Rust)**
-Run local environment tests using `solana-program-test`:
+Run local environment tests using `solana-program-test`. These tests load `target/deploy/vault_raise.so`, so build the SBF artifact first:
 ```bash
+cargo build-sbf --manifest-path programs/vault_raise/Cargo.toml
 cargo test
 ```
 This tests all scenarios (Creation, Contribution, Withdrawal, and Refund) in a local in-memory validator without needing a live network.
+
+The tests verify both transaction outcomes and on-chain account state for `Campaign` and `Contribution` accounts.
 
 **Devnet E2E Tests (TypeScript)**
 To test against a live network (Devnet), run the TypeScript script from the host (Windows):
@@ -48,18 +56,52 @@ npm install
 npx tsx scripts/devnet_test.ts
 ```
 
-## 4. Devnet Deployment Instructions
+## 4. Usage And Integration Notes
+
+PDA derivation:
+
+```text
+campaign = ["campaign", creator.key(), campaign_id]
+vault = ["vault", campaign.key()]
+contribution = ["contribution", campaign.key(), donor.key()]
+```
+
+Instruction sequence:
+
+1. `create_campaign(campaign_id, goal, deadline)` initializes the campaign state and vault PDA.
+2. `contribute(amount)` transfers SOL from donor to vault and records the donor contribution.
+3. `withdraw()` transfers vault SOL to the creator after the deadline if `raised >= goal`.
+4. `refund()` transfers a donor's contribution back after the deadline if `raised < goal`.
+
+Common errors:
+
+| Error | Typical cause |
+| --- | --- |
+| `InvalidGoal` | `goal == 0`. |
+| `InvalidDeadline` | `deadline <= Clock::get()?.unix_timestamp`. |
+| `CampaignEnded` | Contribution after deadline. |
+| `CampaignNotEnded` | Withdraw or refund before deadline. |
+| `CampaignNotSuccessful` | Withdraw before funding goal is met. |
+| `CampaignNotFailed` | Refund attempted on a successful campaign. |
+| `UnauthorizedCreator` | Withdraw signer does not match `campaign.creator`. |
+| `AlreadyClaimed` | Withdraw attempted more than once. |
+| `AlreadyRefunded` | Refund attempted more than once for the same contribution. |
+| `InvalidContributionAmount` | Contribution amount is zero or refund contribution amount is zero. |
+| `ArithmeticOverflow` | Lamport addition overflowed. |
+
+## 5. Devnet Deployment Instructions
 
 1. Get some Devnet SOL: `solana airdrop 5 -u devnet`
 2. Make sure `Anchor.toml` is pointed to `cluster = "devnet"`.
 3. Make sure the Program ID in `Anchor.toml` matches `declare_id!()` in `lib.rs`.
-4. Deploy:
+4. Build and deploy:
 ```bash
+cargo build-sbf --manifest-path programs/vault_raise/Cargo.toml
 anchor deploy
 ```
 5. If the program ID changes (e.g., deleted target folder), run `solana address -k target/deploy/vault_raise-keypair.json` to get the new ID, update `lib.rs` and `Anchor.toml`, then `anchor build && anchor deploy` again.
 
-## 5. MVP Known Limitations
+## 6. MVP Known Limitations
 
 - **No SPL Token Support**: The program currently only accepts native SOL, not USDC or other tokens.
 - **Account Closure**: Campaign accounts are not closed after completion/refund to serve as an on-chain audit trail. This leaves some rent tied up.

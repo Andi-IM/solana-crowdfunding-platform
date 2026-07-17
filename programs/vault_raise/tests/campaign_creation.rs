@@ -1,26 +1,42 @@
-use anchor_lang::{InstructionData, ToAccountMetas};
+use anchor_lang::{AccountDeserialize, InstructionData, ToAccountMetas};
 use solana_program_test::*;
 use solana_sdk::{
-    instruction::Instruction, pubkey::Pubkey, signature::Signer,
-    transaction::Transaction,
+    instruction::Instruction, pubkey::Pubkey, signature::Signer, transaction::Transaction,
 };
 use solana_system_interface::program::id as system_program_id;
 use vault_raise;
 
+async fn get_campaign(
+    banks_client: &mut BanksClient,
+    campaign_pda: Pubkey,
+) -> vault_raise::Campaign {
+    let account = banks_client
+        .get_account(campaign_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    vault_raise::Campaign::try_deserialize(&mut account.data.as_slice()).unwrap()
+}
+
 pub fn program_test() -> ProgramTest {
+    let sbf_out_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/deploy");
+    std::env::set_var("SBF_OUT_DIR", sbf_out_dir);
     ProgramTest::new("vault_raise", vault_raise::id(), None)
 }
 
 #[tokio::test]
 async fn test_campaign_creation_success() {
     let program_test = program_test();
-    let (banks_client, payer, recent_blockhash) = program_test.start().await;
+    let (mut banks_client, payer, recent_blockhash) = program_test.start().await;
 
     let campaign_id = 1u64;
     let goal = 10_000_000u64; // 0.01 SOL
-    
+
     // Get current time from clock
-    let clock = banks_client.get_sysvar::<solana_sdk::clock::Clock>().await.unwrap();
+    let clock = banks_client
+        .get_sysvar::<solana_sdk::clock::Clock>()
+        .await
+        .unwrap();
     let deadline = clock.unix_timestamp + 86400; // 1 day in the future
 
     let (campaign_pda, _) = Pubkey::find_program_address(
@@ -32,10 +48,8 @@ async fn test_campaign_creation_success() {
         &vault_raise::id(),
     );
 
-    let (vault_pda, _) = Pubkey::find_program_address(
-        &[b"vault", campaign_pda.as_ref()],
-        &vault_raise::id(),
-    );
+    let (vault_pda, _) =
+        Pubkey::find_program_address(&[b"vault", campaign_pda.as_ref()], &vault_raise::id());
 
     let ix = Instruction {
         program_id: vault_raise::id(),
@@ -47,7 +61,7 @@ async fn test_campaign_creation_success() {
         }
         .to_account_metas(None),
         data: vault_raise::instruction::CreateCampaign {
-            _campaign_id: campaign_id,
+            campaign_id,
             goal,
             deadline,
         }
@@ -60,10 +74,13 @@ async fn test_campaign_creation_success() {
     let result = banks_client.process_transaction(transaction).await;
     assert!(result.is_ok(), "Campaign creation should succeed");
 
-    // Verify state
-    let account = banks_client.get_account(campaign_pda).await.unwrap().unwrap();
-    // In a real test, we would deserialize the Anchor account here, but verifying it exists is a good first step.
-    assert!(account.data.len() > 0);
+    let campaign = get_campaign(&mut banks_client, campaign_pda).await;
+    assert_eq!(campaign.creator, payer.pubkey());
+    assert_eq!(campaign.goal, goal);
+    assert_eq!(campaign.raised, 0);
+    assert_eq!(campaign.deadline, deadline);
+    assert!(!campaign.claimed);
+    assert!(campaign.status == vault_raise::CampaignStatus::Active);
 }
 
 #[tokio::test]
@@ -72,7 +89,7 @@ async fn test_campaign_creation_fails_past_deadline() {
     let (banks_client, payer, recent_blockhash) = program_test.start().await;
 
     let campaign_id = 2u64;
-    let goal = 10_000_000u64; 
+    let goal = 10_000_000u64;
     let deadline = 0; // Past deadline (1970)
 
     let (campaign_pda, _) = Pubkey::find_program_address(
@@ -84,10 +101,8 @@ async fn test_campaign_creation_fails_past_deadline() {
         &vault_raise::id(),
     );
 
-    let (vault_pda, _) = Pubkey::find_program_address(
-        &[b"vault", campaign_pda.as_ref()],
-        &vault_raise::id(),
-    );
+    let (vault_pda, _) =
+        Pubkey::find_program_address(&[b"vault", campaign_pda.as_ref()], &vault_raise::id());
 
     let ix = Instruction {
         program_id: vault_raise::id(),
@@ -99,7 +114,7 @@ async fn test_campaign_creation_fails_past_deadline() {
         }
         .to_account_metas(None),
         data: vault_raise::instruction::CreateCampaign {
-            _campaign_id: campaign_id,
+            campaign_id,
             goal,
             deadline,
         }
@@ -110,7 +125,10 @@ async fn test_campaign_creation_fails_past_deadline() {
     transaction.sign(&[&payer], recent_blockhash);
 
     let result = banks_client.process_transaction(transaction).await;
-    assert!(result.is_err(), "Campaign creation should fail due to past deadline");
+    assert!(
+        result.is_err(),
+        "Campaign creation should fail due to past deadline"
+    );
 }
 
 #[tokio::test]
@@ -120,7 +138,10 @@ async fn test_campaign_creation_fails_zero_goal() {
 
     let campaign_id = 3u64;
     let goal = 0u64; // Zero goal is invalid
-    let clock = banks_client.get_sysvar::<solana_sdk::clock::Clock>().await.unwrap();
+    let clock = banks_client
+        .get_sysvar::<solana_sdk::clock::Clock>()
+        .await
+        .unwrap();
     let deadline = clock.unix_timestamp + 86400;
 
     let (campaign_pda, _) = Pubkey::find_program_address(
@@ -132,10 +153,8 @@ async fn test_campaign_creation_fails_zero_goal() {
         &vault_raise::id(),
     );
 
-    let (vault_pda, _) = Pubkey::find_program_address(
-        &[b"vault", campaign_pda.as_ref()],
-        &vault_raise::id(),
-    );
+    let (vault_pda, _) =
+        Pubkey::find_program_address(&[b"vault", campaign_pda.as_ref()], &vault_raise::id());
 
     let ix = Instruction {
         program_id: vault_raise::id(),
@@ -147,7 +166,7 @@ async fn test_campaign_creation_fails_zero_goal() {
         }
         .to_account_metas(None),
         data: vault_raise::instruction::CreateCampaign {
-            _campaign_id: campaign_id,
+            campaign_id,
             goal,
             deadline,
         }
@@ -158,5 +177,8 @@ async fn test_campaign_creation_fails_zero_goal() {
     transaction.sign(&[&payer], recent_blockhash);
 
     let result = banks_client.process_transaction(transaction).await;
-    assert!(result.is_err(), "Campaign creation should fail due to zero goal");
+    assert!(
+        result.is_err(),
+        "Campaign creation should fail due to zero goal"
+    );
 }

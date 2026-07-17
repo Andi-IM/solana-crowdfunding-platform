@@ -14,16 +14,16 @@ It solves the common trust issues in traditional crowdfunding by utilizing a **P
 ## Technical Stack
 
 - **Blockchain**: Solana
-- **Smart Contract Framework**: Anchor (v0.31.1)
-- **Language**: Rust (v1.79.0)
+- **Smart Contract Framework**: Anchor / `anchor-lang` (v0.32.1)
+- **Language**: Rust 2021 edition
 
 ## Prerequisites
 
 To build and test this project locally, ensure you have the following installed:
 
-- [Rust and Cargo](https://rustup.rs/) (v1.79.0 recommended)
+- [Rust and Cargo](https://rustup.rs/)
 - [Solana CLI](https://docs.solana.com/cli/install-solana-cli-tools) (v2.1.0)
-- [Anchor CLI](https://www.anchor-lang.com/docs/installation) (v0.31.1)
+- [Anchor CLI](https://www.anchor-lang.com/docs/installation) compatible with `anchor-lang` v0.32.1
 
 If you are on Windows, it is highly recommended to use **WSL (Ubuntu)** for development.
 
@@ -41,19 +41,47 @@ cd solana-crowdfunding-platform
 To compile the smart contract, run:
 
 ```bash
-anchor build
+cargo build-sbf --manifest-path programs/vault_raise/Cargo.toml
 ```
 
-This will generate the IDL and the compiled program in the `target/` directory.
+This generates the compiled SBF program at `target/deploy/vault_raise.so`, which is also used by the Rust integration tests.
 
 ### 3. Run Tests
 
-To run the unit tests and ensure everything is working correctly, you can use:
+The Rust integration tests run the compiled SBF program through `solana-program-test`. Build the SBF artifact first, then run the tests:
 
 ```bash
 cargo check
+cargo build-sbf --manifest-path programs/vault_raise/Cargo.toml
 cargo test
 ```
+
+## Usage Flow
+
+Typical client usage:
+
+1. Derive the campaign PDA with `["campaign", creator, campaign_id]`.
+2. Derive the vault PDA with `["vault", campaign]`.
+3. Call `create_campaign(campaign_id, goal, deadline)` with a positive lamport goal and a future Unix timestamp.
+4. Derive each donor contribution PDA with `["contribution", campaign, donor]`.
+5. Call `contribute(amount)` before the deadline to transfer SOL into the vault PDA.
+6. After the deadline, call `withdraw()` if `raised >= goal`, or `refund()` if `raised < goal`.
+
+Common program errors:
+
+| Error | Meaning |
+| --- | --- |
+| `InvalidGoal` | Campaign goal must be greater than zero. |
+| `InvalidDeadline` | Campaign deadline must be in the future. |
+| `CampaignEnded` | Contribution was attempted after the campaign deadline. |
+| `CampaignNotEnded` | Withdraw or refund was attempted before the deadline. |
+| `CampaignNotSuccessful` | Withdraw was attempted before the goal was reached. |
+| `CampaignNotFailed` | Refund was attempted for a successful campaign. |
+| `UnauthorizedCreator` | A non-creator tried to withdraw. |
+| `AlreadyClaimed` | Campaign funds have already been withdrawn. |
+| `AlreadyRefunded` | The donor contribution has already been refunded. |
+| `InvalidContributionAmount` | Contribution or refund amount is zero or invalid. |
+| `ArithmeticOverflow` | Lamport accounting overflowed. |
 
 ## Deployment
 
