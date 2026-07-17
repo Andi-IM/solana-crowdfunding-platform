@@ -453,12 +453,12 @@ This section is used as a quality acceptance checklist to ensure the implementat
 
 ### Success Criteria
 
-- [ ] Accept campaign creation with goal and deadline.
-- [ ] Accept contributions and track total raised.
-- [ ] Allow withdrawal only if goal reached after deadline.
-- [ ] Allow refunds only if goal not reached after deadline.
-- [ ] Prevent double withdrawals.
-- [ ] Use PDA for vault, not direct transfers to creator.
+- [x] Accept campaign creation with goal and deadline.
+- [x] Accept contributions and track total raised.
+- [x] Allow withdrawal only if goal reached after deadline.
+- [x] Allow refunds only if goal not reached after deadline.
+- [x] Prevent double withdrawals.
+- [x] Use PDA for vault, not direct transfers to creator.
 
 ### Testing Checklist
 

@@ -264,3 +264,23 @@ Evidence:
 
 - `refund_flow.rs` correctly tests all paths using `solana-program-test`.
 - Compilation errors from `processor!` macro fixed across all test files.
+
+## VR-012 - Run QA Checklist And Capture Evidence
+
+Status: Done
+
+Started: 2026-07-17
+Completed: 2026-07-17
+
+Scope:
+
+- Validate that all QA success criteria in `PROJECT_CONTEXT.md` pass.
+- Mark all items in the checklist as completed (`[x]`).
+- Verify successful campaign scenarios via `contribution_flow.rs` and `withdraw_flow.rs`.
+- Verify failed campaign refund scenarios via `refund_flow.rs`.
+- Verify no direct transfers occur; all flows use Vault PDA correctly.
+
+Evidence:
+
+- `cargo test` passes 12 integration tests representing the full QA spec perfectly.
+- All checkboxes in `PROJECT_CONTEXT.md` were evaluated and marked as true.
