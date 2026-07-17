@@ -182,3 +182,24 @@ Evidence:
 - Validations match conditions precisely and use `VaultRaiseError`.
 - PDA signatures correctly applied for secure transfers.
 - `cargo check` completed successfully in WSL.
+
+## VR-008 - Write Unit And Integration Tests For Campaign Creation
+
+Status: Done
+
+Started: 2026-07-17
+Completed: 2026-07-17
+
+Scope:
+
+- Add `solana-program-test`, `solana-sdk`, and `tokio` to `dev-dependencies`.
+- Create `tests/campaign_creation.rs` integration test suite.
+- Write `test_campaign_creation_success` with future deadline.
+- Write `test_campaign_creation_fails_past_deadline` with past deadline.
+- Write `test_campaign_creation_fails_zero_goal` with `0` goal.
+- Validate campaign state properties (existence check).
+
+Evidence:
+
+- `campaign_creation.rs` implemented with `anchor_lang::InstructionData` for instruction building.
+- Tests execute correctly using the `solana-program-test` local bank environment.
