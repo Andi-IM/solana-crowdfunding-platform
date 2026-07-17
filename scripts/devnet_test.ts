@@ -12,7 +12,8 @@ async function main() {
     console.log("Starting Devnet Test...");
 
     const connection = new Connection("https://api.devnet.solana.com", "confirmed");
-    const secretKey = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../id.json"), "utf8"));
+    const walletPath = process.env.SOLANA_WALLET ?? path.resolve(__dirname, "../id.json");
+    const secretKey = JSON.parse(fs.readFileSync(walletPath, "utf8"));
     const payer = Keypair.fromSecretKey(new Uint8Array(secretKey));
 
     const wallet = new anchor.Wallet(payer);

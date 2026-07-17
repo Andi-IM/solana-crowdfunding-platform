@@ -53,8 +53,11 @@ The tests verify both transaction outcomes and on-chain account state for `Campa
 To test against a live network (Devnet), run the TypeScript script from the host (Windows):
 ```powershell
 npm install
+$env:SOLANA_WALLET="\\wsl.localhost\Ubuntu\home\andii\.config\solana\id.json"
 npx tsx scripts/devnet_test.ts
 ```
+
+If `SOLANA_WALLET` is not set, the script falls back to `id.json` in the project root.
 
 ## 4. Usage And Integration Notes
 

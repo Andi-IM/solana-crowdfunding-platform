@@ -584,6 +584,7 @@ Deliverables that must be available when the project is considered complete:
 
    - Deployed program address: `GeYMy79EJmUs8japokaVcadb2RRs6vv7c4xYE2fbjkQW`
    - Devnet explorer link: [View on Solana Explorer](https://explorer.solana.com/address/GeYMy79EJmUs8japokaVcadb2RRs6vv7c4xYE2fbjkQW?cluster=devnet)
+   - Deploy transaction signature: `2xxvkiyz2LBhT916o9h2uU8TwX34o8jhxBn94wKbSPod5A6ktDnZJFQShwavSjjMEH5v1reRM7Kihdc3CWHyNS9f`
 
 3. **Program ID**
 
@@ -608,14 +609,14 @@ Deliverables that must be available when the project is considered complete:
    Test transactions successfully executed on Devnet:
 
    **Scenario 1 (Successful Campaign & Withdraw):**
-   - Create Campaign: `5FFoBmybpAJhhsmCEapHFhvgYkLo6VAFXSXVdZrPiDdHLsctrA81chA7MVogyDvBysbYbGTaZwbeh2KoqsYra8zE`
-   - Contribute: `3wmVsZ3aHL5H4mXwHH2svbN76p5x3GTJ9HkPs8VD1TCFKz9JaRfphK2F2TiFr169oqNaGchiHRaQy5bWw85aoovB`
-   - Withdraw: `a8dqm5XGYRBQJ7kqTF5hSkgAduQD5SWSNQVfWDyKi3nkqjkqN7mSpB5RofQY5p6B769MpQFziyR7ZP7qtcHWThh`
+   - Create Campaign: `3g8bwaWWKhsZ1GUWNHrP4YdFiffrT2gtaunghZpor1dnezy1z6ZinevfVLcHHd4GfuvpRA7J4TXauKFUQe5Q6H2M`
+   - Contribute: `59qA1cSgWMDEj93adQniSZ6xVLeaBVL4zEZ2J1TXjypnQ1BsubsCLF6TvAesAz6vuaCTddPeZCzAzxsimzJiYtaW`
+   - Withdraw: `35ugYvRfuqZCLXY4iXtcepiUZER5awm69cYpG688XLYgdUjgYsZ6V8HJysnwE6Q1rx8sLD7aVognwYpa2JHzawE5`
 
    **Scenario 2 (Failed Campaign & Refund):**
-   - Create Campaign: `5fPfM7F3EpfsK7LP8KYrnCxnkoViB4SeVnnaDAhbgSEwnGqbV7hFYUSU42gHTnRLw3dujqRq7KDfYdaxLy8E7A1W`
-   - Contribute: `5szjUQXZehJFZQdz44uLkiEsppD5ybv2EtamxNtWyZrVAViK4b4CN4yueZ92rq6TLXLTUCLXCP2HgAeSBUxAunq7`
-   - Refund: `4F3b4rTaBgyciShTqN9jhoGJhoGocrzHBnRGY5Rk2MrZSYrx8kto3FSgUrjkCgijEEV7GhcLf4hcJ2ifazGN8xpa`
+   - Create Campaign: `3btFUg9DiGA57Wfk4eAi2pTugDFtN654tUkEmcj2ofdber17nE2ijNrwbsobdiB8JdLPr1Qas7XPZf1VbmeAkg1e`
+   - Contribute: `4z62s733xEMacE43F9J6LwS54bHK4Nv6PvjLBhf1DzAHQ4zhGXwUPB68AjgW8rjw9o6cp6LvdJWggfh2kiFL3AMw`
+   - Refund: `3dpiHZZ1Xp7hnQtH8T3P9huALeGUziHhsZPoLyJJZX7AMDMiYAVFUBHfvHBmWLZ1Hjsgi93cC4VmHWGfpDw5ZwXk`
 
    _All signatures can be verified on [Solana Explorer (Devnet)](https://explorer.solana.com/?cluster=devnet)_
 
