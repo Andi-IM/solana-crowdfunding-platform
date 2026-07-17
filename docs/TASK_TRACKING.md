@@ -95,3 +95,24 @@ Evidence:
 - Validations use `require!` macro with `VaultRaiseError`.
 - Campaign account initialized with correct values.
 - `cargo check` completed successfully in WSL without unused variable warnings for `_campaign_id`.
+
+## VR-004 - Implement PDA Vault Derivation
+
+Status: Done
+
+Started: 2026-07-17
+Completed: 2026-07-17
+
+Scope:
+
+- Add `vault` SystemAccount PDA to `CreateCampaign`.
+- Derive vault with seed `["vault", campaign.key()]`.
+- Add `vault_bump` initialization to `create_campaign`.
+- Add internal documentation regarding direct creator transfers.
+
+Evidence:
+
+- `vault: SystemAccount<'info>` added with proper `seeds` and `bump` constraints.
+- `campaign.vault_bump = ctx.bumps.vault;` implemented.
+- Internal documentation comments added in `create_campaign`.
+- `cargo check` completes successfully.

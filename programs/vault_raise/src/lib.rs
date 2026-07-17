@@ -24,7 +24,11 @@ pub mod vault_raise {
         campaign.deadline = deadline;
         campaign.claimed = false;
         campaign.bump = ctx.bumps.campaign;
-        campaign.vault_bump = 0; // To be implemented fully in VR-004
+        campaign.vault_bump = ctx.bumps.vault;
+
+        // INTERNAL DOCUMENTATION:
+        // The creator must not receive donations directly. All contributions
+        // are stored in the program-controlled vault PDA.
 
         msg!("Campaign created: goal={}, deadline={}", goal, deadline);
 
@@ -43,6 +47,16 @@ pub struct CreateCampaign<'info> {
         bump
     )]
     pub campaign: Account<'info, Campaign>,
+
+    /// CHECK: Vault PDA to hold campaign funds.
+    /// It must not be the creator's direct account.
+    #[account(
+        mut,
+        seeds = [b"vault", campaign.key().as_ref()],
+        bump
+    )]
+    pub vault: SystemAccount<'info>,
+
     #[account(mut)]
     pub creator: Signer<'info>,
     pub system_program: Program<'info, System>,
