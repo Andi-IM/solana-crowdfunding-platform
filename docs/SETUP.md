@@ -73,7 +73,7 @@ Instruction sequence:
 3. `contribute(amount)` transfers SOL from donor to vault and records the donor contribution.
 4. `withdraw()` transfers vault SOL to the creator after the deadline if `raised >= goal`.
 5. `refund()` transfers a donor's contribution back after the deadline if `raised < goal`.
-6. `close_campaign()` and `close_refunded_contribution()` close settled accounts and return rent.
+6. Optional: `close_campaign()` and `close_refunded_contribution()` close settled accounts and return rent when account-data retention is not required.
 
 Architecture layout:
 
@@ -91,9 +91,9 @@ programs/vault_raise/src/
 
 Design extension points:
 
-- `FundingAsset` stores `NativeSol` now and reserves a `SplToken { mint }` variant for SPL token vault instructions.
+- `FundingAsset` stores `NativeSol` now and reserves a `SplToken { mint }` variant for future SPL token vault instructions. SPL token transfers are not operational yet.
 - `Campaign::realloc_space()` and `update_campaign_metadata()` define the bounded account reallocation path.
-- `Governance` is a singleton PDA for future upgrade/admin controls.
+- `Governance` is a singleton PDA for future upgrade/admin controls. Current governance operations only initialize and transfer authority.
 
 Common errors:
 
@@ -126,7 +126,7 @@ anchor deploy
 ## 6. MVP Known Limitations
 
 - **No SPL Token Support**: The program currently only accepts native SOL, not USDC or other tokens.
-- **Account Closure**: Campaign accounts are not closed after completion/refund to serve as an on-chain audit trail. This leaves some rent tied up.
+- **Account Closure**: Account closure is optional after settlement. Leaving accounts open preserves account-data audit history; closing accounts returns rent while structured events/logs remain available for off-chain audit.
 - **No Platform Fees**: 100% of the funds go to the creator or back to donors.
 - **Over-funding Allowed**: Donors can still contribute even if the funding goal has already been reached, as long as the deadline hasn't passed.
 - **Timestamp Accuracy**: Relies on Solana's `Clock::unix_timestamp`, which can vary slightly from real-world time.

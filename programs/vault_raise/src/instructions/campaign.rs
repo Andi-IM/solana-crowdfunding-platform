@@ -31,6 +31,8 @@ pub fn create_campaign(
     campaign.vault_bump = ctx.bumps.vault;
     campaign.metadata_uri = String::new();
 
+    msg!("Campaign created: goal={}, deadline={}", goal, deadline);
+
     emit!(CampaignCreated {
         campaign: campaign.key(),
         creator: campaign.creator,
@@ -104,6 +106,8 @@ pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
 
     campaign.claimed = true;
     campaign.status = CampaignStatus::Claimed;
+
+    msg!("Withdrawn: {} lamports", amount);
 
     emit!(CampaignWithdrawn {
         campaign: campaign.key(),

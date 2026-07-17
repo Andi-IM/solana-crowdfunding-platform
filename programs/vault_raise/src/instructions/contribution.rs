@@ -55,6 +55,12 @@ pub fn contribute(ctx: Context<Contribute>, amount: u64) -> Result<()> {
             .ok_or(VaultRaiseError::ArithmeticOverflow)?;
     }
 
+    msg!(
+        "Contributed: {} lamports, total={}",
+        amount,
+        campaign.raised
+    );
+
     emit!(CampaignContributed {
         campaign: campaign.key(),
         donor: ctx.accounts.donor.key(),
@@ -110,6 +116,9 @@ pub fn refund(ctx: Context<Refund>) -> Result<()> {
     anchor_lang::system_program::transfer(cpi_context, amount)?;
 
     contribution.refunded = true;
+    contribution.amount = 0;
+
+    msg!("Refunded: {} lamports", amount);
 
     emit!(ContributionRefunded {
         campaign: campaign.key(),

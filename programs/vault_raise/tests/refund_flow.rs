@@ -188,7 +188,7 @@ async fn test_refund_success_and_twice_fails() {
     let contribution = get_contribution(&mut context.banks_client, contribution_pda).await;
     assert_eq!(contribution.campaign, campaign_pda);
     assert_eq!(contribution.donor, donor.pubkey());
-    assert_eq!(contribution.amount, expected_increase);
+    assert_eq!(contribution.amount, 0);
     assert!(contribution.refunded);
 
     // Second refund should fail (AlreadyRefunded)
