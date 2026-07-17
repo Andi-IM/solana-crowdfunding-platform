@@ -117,6 +117,45 @@ pub mod vault_raise {
 
         Ok(())
     }
+
+    pub fn refund(ctx: Context<Refund>) -> Result<()> {
+        let current_time = Clock::get()?.unix_timestamp;
+        let campaign = &ctx.accounts.campaign;
+        let contribution = &mut ctx.accounts.contribution;
+
+        require!(campaign.raised < campaign.goal, VaultRaiseError::CampaignNotFailed);
+        require!(current_time >= campaign.deadline, VaultRaiseError::CampaignNotEnded);
+        require!(!contribution.refunded, VaultRaiseError::AlreadyRefunded);
+        require!(contribution.amount > 0, VaultRaiseError::InvalidContributionAmount);
+
+        let amount = contribution.amount;
+
+        let campaign_key = campaign.key();
+        let vault_bump = campaign.vault_bump;
+        let seeds = &[
+            b"vault".as_ref(),
+            campaign_key.as_ref(),
+            &[vault_bump],
+        ];
+        let signer_seeds = &[&seeds[..]];
+
+        let cpi_context = CpiContext::new_with_signer(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.vault.to_account_info(),
+                to: ctx.accounts.donor.to_account_info(),
+            },
+            signer_seeds,
+        );
+
+        anchor_lang::system_program::transfer(cpi_context, amount)?;
+
+        contribution.refunded = true;
+
+        msg!("Refunded: {} lamports", amount);
+
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -191,6 +230,31 @@ pub struct Withdraw<'info> {
 
     #[account(mut)]
     pub creator: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct Refund<'info> {
+    pub campaign: Account<'info, Campaign>,
+
+    #[account(
+        mut,
+        has_one = campaign,
+        has_one = donor,
+    )]
+    pub contribution: Account<'info, Contribution>,
+
+    /// CHECK: Vault PDA to hold campaign funds.
+    #[account(
+        mut,
+        seeds = [b"vault", campaign.key().as_ref()],
+        bump = campaign.vault_bump
+    )]
+    pub vault: SystemAccount<'info>,
+
+    #[account(mut)]
+    pub donor: Signer<'info>,
 
     pub system_program: Program<'info, System>,
 }

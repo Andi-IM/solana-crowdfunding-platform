@@ -160,3 +160,25 @@ Evidence:
 - Validations match conditions precisely and use specific `VaultRaiseError` variants.
 - PDA signatures are used securely (`CpiContext::new_with_signer`).
 - `cargo check` completed successfully.
+
+## VR-007 - Implement Refund Instruction
+
+Status: Done
+
+Started: 2026-07-17
+Completed: 2026-07-17
+
+Scope:
+
+- Add `refund` instruction and `Refund` accounts struct.
+- Validate `raised < goal`, `current_time >= deadline`, and `!refunded`.
+- Secure donor mapping with `has_one = donor` and `has_one = campaign`.
+- Transfer SOL from vault PDA to donor via signed CPI.
+- Set `contribution.refunded = true`.
+- Log the refunded amount.
+
+Evidence:
+
+- Validations match conditions precisely and use `VaultRaiseError`.
+- PDA signatures correctly applied for secure transfers.
+- `cargo check` completed successfully in WSL.
