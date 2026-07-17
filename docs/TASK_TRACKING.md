@@ -324,3 +324,29 @@ Evidence:
 - Program ID: `GeYMy79EJmUs8japokaVcadb2RRs6vv7c4xYE2fbjkQW`
 - Explorer Link: [https://explorer.solana.com/address/GeYMy79EJmUs8japokaVcadb2RRs6vv7c4xYE2fbjkQW?cluster=devnet](https://explorer.solana.com/address/GeYMy79EJmUs8japokaVcadb2RRs6vv7c4xYE2fbjkQW?cluster=devnet)
 - Transaction Signature: `2P5s1G2YypWaZp2Nhn4XnpkY2Bad4vBjVPeiQ1ogLyArnMtGK71Tw171BTxhDXu7TNsv1wLo3SybfaWziKLonMeJ`
+
+## VR-015 - Execute Devnet Test Transactions
+
+Status: Done
+
+Started: 2026-07-17
+Completed: 2026-07-17
+
+Scope:
+
+- Execute devnet transactions for full program lifecycle (Create Campaign, Contribute, Withdraw, Refund).
+- Ensure all logic (including time-based deadline locks) functions on the live Devnet cluster.
+- Record the Devnet Transaction Signatures.
+
+Evidence:
+
+- **Scenario 1 (Successful Campaign & Withdraw):**
+  - Create Campaign TX: `5FFoBmybpAJhhsmCEapHFhvgYkLo6VAFXSXVdZrPiDdHLsctrA81chA7MVogyDvBysbYbGTaZwbeh2KoqsYra8zE`
+  - Contribute TX: `3wmVsZ3aHL5H4mXwHH2svbN76p5x3GTJ9HkPs8VD1TCFKz9JaRfphK2F2TiFr169oqNaGchiHRaQy5bWw85aoovB`
+  - Withdraw TX: `a8dqm5XGYRBQJ7kqTF5hSkgAduQD5SWSNQVfWDyKi3nkqjkqN7mSpB5RofQY5p6B769MpQFziyR7ZP7qtcHWThh`
+- **Scenario 2 (Failed Campaign & Refund):**
+  - Create Campaign TX: `5fPfM7F3EpfsK7LP8KYrnCxnkoViB4SeVnnaDAhbgSEwnGqbV7hFYUSU42gHTnRLw3dujqRq7KDfYdaxLy8E7A1W`
+  - Contribute TX: `5szjUQXZehJFZQdz44uLkiEsppD5ybv2EtamxNtWyZrVAViK4b4CN4yueZ92rq6TLXLTUCLXCP2HgAeSBUxAunq7`
+  - Refund TX: `4F3b4rTaBgyciShTqN9jhoGJhoGocrzHBnRGY5Rk2MrZSYrx8kto3FSgUrjkCgijEEV7GhcLf4hcJ2ifazGN8xpa`
+
+_All signatures can be searched on [Solana Explorer (Devnet)](https://explorer.solana.com/?cluster=devnet)_
