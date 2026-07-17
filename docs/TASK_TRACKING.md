@@ -284,3 +284,23 @@ Evidence:
 
 - `cargo test` passes 12 integration tests representing the full QA spec perfectly.
 - All checkboxes in `PROJECT_CONTEXT.md` were evaluated and marked as true.
+
+## VR-013 - Prepare Devnet Wallet And Configuration
+
+Status: Done
+
+Started: 2026-07-17
+Completed: 2026-07-17
+
+Scope:
+
+- Configure `solana-cli` to use the `devnet` cluster (`https://api.devnet.solana.com`).
+- Verify or generate the deployer wallet at `~/.config/solana/id.json`.
+- Configure `Anchor.toml` `cluster = "devnet"`.
+- Request devnet SOL airdrop (Note: subject to API rate limits).
+
+Evidence:
+
+- `solana config get` points to devnet.
+- Keypair exists at `~/.config/solana/id.json`.
+- `Anchor.toml` updated.

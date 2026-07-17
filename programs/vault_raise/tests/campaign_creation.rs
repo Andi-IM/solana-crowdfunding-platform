@@ -6,9 +6,9 @@ use solana_sdk::{
 };
 use vault_raise;
 
-pub fn process_instruction(
+pub fn process_instruction<'a>(
     program_id: &Pubkey,
-    accounts: &[solana_sdk::account_info::AccountInfo],
+    accounts: &'a [solana_sdk::account_info::AccountInfo<'a>],
     instruction_data: &[u8],
 ) -> solana_sdk::entrypoint::ProgramResult {
     vault_raise::entry(program_id, accounts, instruction_data)
