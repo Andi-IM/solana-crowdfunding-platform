@@ -34,6 +34,52 @@ pub mod vault_raise {
 
         Ok(())
     }
+
+    pub fn contribute(ctx: Context<Contribute>, amount: u64) -> Result<()> {
+        let current_time = Clock::get()?.unix_timestamp;
+
+        require!(amount > 0, VaultRaiseError::InvalidContributionAmount);
+
+        let campaign = &mut ctx.accounts.campaign;
+
+        require!(current_time < campaign.deadline, VaultRaiseError::CampaignEnded);
+        require!(!campaign.claimed, VaultRaiseError::AlreadyClaimed);
+
+        // Transfer SOL from donor to vault
+        let cpi_context = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.donor.to_account_info(),
+                to: ctx.accounts.vault.to_account_info(),
+            },
+        );
+        anchor_lang::system_program::transfer(cpi_context, amount)?;
+
+        // Update campaign raised amount
+        campaign.raised = campaign
+            .raised
+            .checked_add(amount)
+            .ok_or(VaultRaiseError::ArithmeticOverflow)?;
+
+        // Create or update contribution account
+        let contribution = &mut ctx.accounts.contribution;
+        if contribution.amount == 0 && !contribution.refunded {
+            contribution.campaign = campaign.key();
+            contribution.donor = ctx.accounts.donor.key();
+            contribution.amount = amount;
+            contribution.refunded = false;
+            contribution.bump = ctx.bumps.contribution;
+        } else {
+            contribution.amount = contribution
+                .amount
+                .checked_add(amount)
+                .ok_or(VaultRaiseError::ArithmeticOverflow)?;
+        }
+
+        msg!("Contributed: {} lamports, total={}", amount, campaign.raised);
+
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -59,6 +105,34 @@ pub struct CreateCampaign<'info> {
 
     #[account(mut)]
     pub creator: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct Contribute<'info> {
+    #[account(mut)]
+    pub campaign: Account<'info, Campaign>,
+
+    #[account(
+        init_if_needed,
+        payer = donor,
+        space = Contribution::SPACE,
+        seeds = [b"contribution", campaign.key().as_ref(), donor.key().as_ref()],
+        bump
+    )]
+    pub contribution: Account<'info, Contribution>,
+
+    /// CHECK: Vault PDA to hold campaign funds.
+    #[account(
+        mut,
+        seeds = [b"vault", campaign.key().as_ref()],
+        bump = campaign.vault_bump
+    )]
+    pub vault: SystemAccount<'info>,
+
+    #[account(mut)]
+    pub donor: Signer<'info>,
+
     pub system_program: Program<'info, System>,
 }
 

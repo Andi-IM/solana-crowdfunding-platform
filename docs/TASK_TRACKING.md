@@ -116,3 +116,25 @@ Evidence:
 - `campaign.vault_bump = ctx.bumps.vault;` implemented.
 - Internal documentation comments added in `create_campaign`.
 - `cargo check` completes successfully.
+
+## VR-005 - Implement Contribute Instruction
+
+Status: Done
+
+Started: 2026-07-17
+Completed: 2026-07-17
+
+Scope:
+
+- Add `contribute` instruction and `Contribute` accounts struct.
+- Validate `amount > 0` and contribution is before `deadline`.
+- Transfer SOL from donor to vault via CPI.
+- Accumulate `campaign.raised`.
+- Create or update `Contribution` account using `init_if_needed`.
+- Log the contribution details.
+
+Evidence:
+
+- `anchor-lang` dependency updated to include `init-if-needed` feature in `Cargo.toml`.
+- `contribute` logic successfully performs valid checks, CPI, and state updates.
+- `cargo check` completed successfully in WSL.
