@@ -243,3 +243,24 @@ Scope:
 Evidence:
 
 - `withdraw_flow.rs` correctly tests all paths using `solana-program-test`.
+
+## VR-011 - Write Tests For Refund Flow
+
+Status: Done
+
+Started: 2026-07-17
+Completed: 2026-07-17
+
+Scope:
+
+- Create `tests/refund_flow.rs` integration test suite.
+- Test `refund` fails if called before deadline.
+- Test `refund` fails for a successful campaign (goal reached).
+- Test `refund` succeeds after deadline when the campaign fails, correctly returning funds.
+- Verify the donor's balance increases.
+- Test second `refund` fails (already refunded).
+
+Evidence:
+
+- `refund_flow.rs` correctly tests all paths using `solana-program-test`.
+- Compilation errors from `processor!` macro fixed across all test files.

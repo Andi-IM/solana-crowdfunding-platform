@@ -6,8 +6,16 @@ use solana_sdk::{
 };
 use vault_raise;
 
+pub fn process_instruction(
+    program_id: &Pubkey,
+    accounts: &[solana_sdk::account_info::AccountInfo],
+    instruction_data: &[u8],
+) -> solana_sdk::entrypoint::ProgramResult {
+    vault_raise::entry(program_id, accounts, instruction_data)
+}
+
 pub fn program_test() -> ProgramTest {
-    ProgramTest::new("vault_raise", vault_raise::id(), processor!(vault_raise::entry))
+    ProgramTest::new("vault_raise", vault_raise::id(), processor!(process_instruction))
 }
 
 async fn setup_campaign(
