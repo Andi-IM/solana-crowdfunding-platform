@@ -66,6 +66,22 @@ Typical client usage:
 4. Derive each donor contribution PDA with `["contribution", campaign, donor]`.
 5. Call `contribute(amount)` before the deadline to transfer SOL into the vault PDA.
 6. After the deadline, call `withdraw()` if `raised >= goal`, or `refund()` if `raised < goal`.
+7. After funds are settled, close claimed campaigns with `close_campaign()` or refunded donor receipts with `close_refunded_contribution()` to return rent.
+
+## Architecture Notes
+
+The Anchor program is split by responsibility:
+
+- `instructions/`: account validation structs and instruction handlers.
+- `state.rs`: campaign, contribution, governance, PDA seeds, and asset model.
+- `events.rs`: structured Anchor events for indexers and clients.
+- `errors.rs`: custom program errors.
+
+The current funding implementation handles native SOL. Campaign state also stores a `FundingAsset` enum with an SPL Token variant, so SPL token vault instructions can be added later without migrating campaign accounts.
+
+Campaign metadata uses an explicit `update_campaign_metadata()` realloc path with a bounded URI length. This keeps the base campaign state small while making future metadata updates intentional and rent-funded by the creator.
+
+Governance is represented by a singleton PDA derived from `["governance"]`. It currently supports authority initialization and transfer as a narrow upgrade/governance foundation for future administrative controls.
 
 Common program errors:
 

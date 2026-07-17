@@ -1,0 +1,210 @@
+use anchor_lang::prelude::*;
+
+use crate::errors::VaultRaiseError;
+use crate::events::{CampaignClosed, CampaignCreated, CampaignMetadataUpdated, CampaignWithdrawn};
+use crate::state::{
+    vault_signer_seeds, Campaign, CampaignStatus, FundingAsset, CAMPAIGN_SEED,
+    MAX_METADATA_URI_LEN, VAULT_SEED,
+};
+
+pub fn create_campaign(
+    ctx: Context<CreateCampaign>,
+    campaign_id: u64,
+    goal: u64,
+    deadline: i64,
+) -> Result<()> {
+    let current_time = Clock::get()?.unix_timestamp;
+
+    require!(goal > 0, VaultRaiseError::InvalidGoal);
+    require!(deadline > current_time, VaultRaiseError::InvalidDeadline);
+
+    let campaign = &mut ctx.accounts.campaign;
+    campaign.creator = ctx.accounts.creator.key();
+    campaign.goal = goal;
+    campaign.raised = 0;
+    campaign.deadline = deadline;
+    campaign.claimed = false;
+    campaign.status = CampaignStatus::Active;
+    campaign.asset = FundingAsset::NativeSol;
+    campaign.metadata_uri_len = 0;
+    campaign.bump = ctx.bumps.campaign;
+    campaign.vault_bump = ctx.bumps.vault;
+    campaign.metadata_uri = String::new();
+
+    emit!(CampaignCreated {
+        campaign: campaign.key(),
+        creator: campaign.creator,
+        campaign_id,
+        goal,
+        deadline,
+        vault: ctx.accounts.vault.key(),
+        asset: campaign.asset.mint(),
+    });
+
+    Ok(())
+}
+
+pub fn update_campaign_metadata(
+    ctx: Context<UpdateCampaignMetadata>,
+    metadata_uri: String,
+) -> Result<()> {
+    require!(
+        metadata_uri.len() <= MAX_METADATA_URI_LEN,
+        VaultRaiseError::MetadataUriTooLong
+    );
+
+    let campaign = &mut ctx.accounts.campaign;
+    campaign.metadata_uri_len =
+        u16::try_from(metadata_uri.len()).map_err(|_| VaultRaiseError::MetadataUriTooLong)?;
+    campaign.metadata_uri = metadata_uri;
+
+    emit!(CampaignMetadataUpdated {
+        campaign: campaign.key(),
+        creator: ctx.accounts.creator.key(),
+        metadata_uri: campaign.metadata_uri.clone(),
+    });
+
+    Ok(())
+}
+
+pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
+    let current_time = Clock::get()?.unix_timestamp;
+    let campaign = &mut ctx.accounts.campaign;
+
+    require!(
+        campaign.asset.is_native_sol(),
+        VaultRaiseError::NativeAssetRequired
+    );
+    require!(
+        campaign.raised >= campaign.goal,
+        VaultRaiseError::CampaignNotSuccessful
+    );
+    require!(
+        current_time >= campaign.deadline,
+        VaultRaiseError::CampaignNotEnded
+    );
+    require!(!campaign.claimed, VaultRaiseError::AlreadyClaimed);
+
+    let amount = ctx.accounts.vault.lamports();
+    let campaign_key = campaign.key();
+    let vault_bump = [campaign.vault_bump];
+    let seeds = vault_signer_seeds(&campaign_key, &vault_bump);
+    let signer_seeds = &[&seeds[..]];
+
+    let cpi_context = CpiContext::new_with_signer(
+        ctx.accounts.system_program.to_account_info(),
+        anchor_lang::system_program::Transfer {
+            from: ctx.accounts.vault.to_account_info(),
+            to: ctx.accounts.creator.to_account_info(),
+        },
+        signer_seeds,
+    );
+
+    anchor_lang::system_program::transfer(cpi_context, amount)?;
+
+    campaign.claimed = true;
+    campaign.status = CampaignStatus::Claimed;
+
+    emit!(CampaignWithdrawn {
+        campaign: campaign.key(),
+        creator: ctx.accounts.creator.key(),
+        amount,
+    });
+
+    Ok(())
+}
+
+pub fn close_campaign(ctx: Context<CloseCampaign>) -> Result<()> {
+    require!(
+        ctx.accounts.campaign.status == CampaignStatus::Claimed,
+        VaultRaiseError::CampaignNotClosable
+    );
+
+    emit!(CampaignClosed {
+        campaign: ctx.accounts.campaign.key(),
+        creator: ctx.accounts.creator.key(),
+    });
+
+    Ok(())
+}
+
+#[derive(Accounts)]
+#[instruction(campaign_id: u64)]
+/// Accounts required to initialize a native-SOL campaign and validate its vault PDA.
+pub struct CreateCampaign<'info> {
+    #[account(
+        init,
+        payer = creator,
+        space = Campaign::SPACE,
+        seeds = [CAMPAIGN_SEED, creator.key().as_ref(), &campaign_id.to_le_bytes()],
+        bump
+    )]
+    pub campaign: Account<'info, Campaign>,
+
+    /// CHECK: Vault PDA to hold native SOL campaign funds.
+    #[account(
+        mut,
+        seeds = [VAULT_SEED, campaign.key().as_ref()],
+        bump
+    )]
+    pub vault: SystemAccount<'info>,
+
+    #[account(mut)]
+    pub creator: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(metadata_uri: String)]
+/// Reallocates campaign metadata within an explicit maximum size.
+pub struct UpdateCampaignMetadata<'info> {
+    #[account(
+        mut,
+        has_one = creator @ VaultRaiseError::UnauthorizedCreator,
+        realloc = Campaign::realloc_space(metadata_uri.len()),
+        realloc::payer = creator,
+        realloc::zero = false
+    )]
+    pub campaign: Account<'info, Campaign>,
+
+    #[account(mut)]
+    pub creator: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+/// Accounts required for a creator withdrawal from a successful native-SOL campaign.
+pub struct Withdraw<'info> {
+    #[account(
+        mut,
+        has_one = creator @ VaultRaiseError::UnauthorizedCreator
+    )]
+    pub campaign: Account<'info, Campaign>,
+
+    /// CHECK: Vault PDA to hold native SOL campaign funds.
+    #[account(
+        mut,
+        seeds = [VAULT_SEED, campaign.key().as_ref()],
+        bump = campaign.vault_bump
+    )]
+    pub vault: SystemAccount<'info>,
+
+    #[account(mut)]
+    pub creator: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+/// Closes claimed campaign state and returns rent to the creator.
+pub struct CloseCampaign<'info> {
+    #[account(
+        mut,
+        close = creator,
+        has_one = creator @ VaultRaiseError::UnauthorizedCreator
+    )]
+    pub campaign: Account<'info, Campaign>,
+
+    #[account(mut)]
+    pub creator: Signer<'info>,
+}

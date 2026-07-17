@@ -197,6 +197,34 @@ async fn test_withdraw_success_and_twice_fails() {
     tx2.sign(&[&payer], recent_blockhash);
     let result2 = context.banks_client.process_transaction(tx2).await;
     assert!(result2.is_err(), "Second withdraw should fail");
+
+    let close_ix = Instruction {
+        program_id: vault_raise::id(),
+        accounts: vault_raise::accounts::CloseCampaign {
+            campaign: campaign_pda,
+            creator: payer.pubkey(),
+        }
+        .to_account_metas(None),
+        data: vault_raise::instruction::CloseCampaign {}.data(),
+    };
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let mut close_tx = Transaction::new_with_payer(&[close_ix], Some(&payer.pubkey()));
+    close_tx.sign(&[&payer], recent_blockhash);
+    context
+        .banks_client
+        .process_transaction(close_tx)
+        .await
+        .expect("Claimed campaign should close");
+
+    let closed_campaign = context
+        .banks_client
+        .get_account(campaign_pda)
+        .await
+        .unwrap();
+    assert!(
+        closed_campaign.is_none(),
+        "Campaign account should be closed"
+    );
 }
 
 #[tokio::test]

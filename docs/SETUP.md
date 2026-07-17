@@ -69,9 +69,31 @@ contribution = ["contribution", campaign.key(), donor.key()]
 Instruction sequence:
 
 1. `create_campaign(campaign_id, goal, deadline)` initializes the campaign state and vault PDA.
-2. `contribute(amount)` transfers SOL from donor to vault and records the donor contribution.
-3. `withdraw()` transfers vault SOL to the creator after the deadline if `raised >= goal`.
-4. `refund()` transfers a donor's contribution back after the deadline if `raised < goal`.
+2. `update_campaign_metadata(metadata_uri)` optionally reallocates campaign metadata within the configured URI limit.
+3. `contribute(amount)` transfers SOL from donor to vault and records the donor contribution.
+4. `withdraw()` transfers vault SOL to the creator after the deadline if `raised >= goal`.
+5. `refund()` transfers a donor's contribution back after the deadline if `raised < goal`.
+6. `close_campaign()` and `close_refunded_contribution()` close settled accounts and return rent.
+
+Architecture layout:
+
+```text
+programs/vault_raise/src/
+  lib.rs                    Anchor entrypoint
+  errors.rs                 custom errors
+  events.rs                 structured events
+  state.rs                  accounts, PDA seeds, asset abstraction
+  instructions/
+    campaign.rs             campaign create/update/withdraw/close
+    contribution.rs         contribute/refund/close contribution
+    governance.rs           governance initialization and authority transfer
+```
+
+Design extension points:
+
+- `FundingAsset` stores `NativeSol` now and reserves a `SplToken { mint }` variant for SPL token vault instructions.
+- `Campaign::realloc_space()` and `update_campaign_metadata()` define the bounded account reallocation path.
+- `Governance` is a singleton PDA for future upgrade/admin controls.
 
 Common errors:
 

@@ -81,6 +81,35 @@ async fn test_campaign_creation_success() {
     assert_eq!(campaign.deadline, deadline);
     assert!(!campaign.claimed);
     assert!(campaign.status == vault_raise::CampaignStatus::Active);
+    assert!(campaign.asset == vault_raise::FundingAsset::NativeSol);
+    assert_eq!(campaign.metadata_uri_len, 0);
+    assert_eq!(campaign.metadata_uri, "");
+
+    let metadata_uri = "ipfs://campaign-metadata".to_string();
+    let update_ix = Instruction {
+        program_id: vault_raise::id(),
+        accounts: vault_raise::accounts::UpdateCampaignMetadata {
+            campaign: campaign_pda,
+            creator: payer.pubkey(),
+            system_program: system_program_id(),
+        }
+        .to_account_metas(None),
+        data: vault_raise::instruction::UpdateCampaignMetadata {
+            metadata_uri: metadata_uri.clone(),
+        }
+        .data(),
+    };
+
+    let recent_blockhash = banks_client.get_latest_blockhash().await.unwrap();
+    let mut update_tx = Transaction::new_with_payer(&[update_ix], Some(&payer.pubkey()));
+    update_tx.sign(&[&payer], recent_blockhash);
+
+    let update_result = banks_client.process_transaction(update_tx).await;
+    assert!(update_result.is_ok(), "Metadata update should succeed");
+
+    let campaign = get_campaign(&mut banks_client, campaign_pda).await;
+    assert_eq!(campaign.metadata_uri_len, metadata_uri.len() as u16);
+    assert_eq!(campaign.metadata_uri, metadata_uri);
 }
 
 #[tokio::test]
