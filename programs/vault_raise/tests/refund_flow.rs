@@ -8,11 +8,7 @@ use solana_system_interface::program::id as system_program_id;
 use vault_raise;
 
 pub fn program_test() -> ProgramTest {
-    ProgramTest::new(
-        "vault_raise",
-        vault_raise::id(),
-        processor!(vault_raise::entry),
-    )
+    ProgramTest::new("vault_raise", vault_raise::id(), None)
 }
 
 async fn setup_failed_campaign(
