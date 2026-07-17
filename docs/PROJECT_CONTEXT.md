@@ -8,7 +8,7 @@ No final decision has been made for the project name. The temporary working name
 
 **VaultRaise**
 
-Reasoning: this name emphasizes the two main values of the product, which are that funds enter a locked vault and can only be withdrawn when the campaign rules are met.
+_Decision confirmed: The project name **VaultRaise** has been adopted for the MVP._
 
 Alternative branding for consideration:
 
@@ -254,7 +254,7 @@ Design notes:
 campaign = ["campaign", creator.key(), campaign_id]
 ```
 
-`campaign_id` can be a `u64` from the input or a timestamp provided by the client, but it's safer if the final design chooses one explicit approach before coding.
+_Decision confirmed: The final implementation uses a `u64` campaign ID to allow multiple campaigns per creator._
 
 ### 2. Contribute
 
@@ -568,7 +568,7 @@ Deliverables that must be available when the project is considered complete:
 
 2. **Deployed To Solana Devnet**
 
-   Initial status: not available yet.
+   Status: **Completed**
 
    Must provide:
 
@@ -580,73 +580,55 @@ Deliverables that must be available when the project is considered complete:
    devnet
    ```
 
-   Minimum proof:
+   Proof:
 
-   - Deploy command output.
-   - Deployed program address.
-   - Devnet explorer link if available.
+   - Deployed program address: `GeYMy79EJmUs8japokaVcadb2RRs6vv7c4xYE2fbjkQW`
+   - Devnet explorer link: [View on Solana Explorer](https://explorer.solana.com/address/GeYMy79EJmUs8japokaVcadb2RRs6vv7c4xYE2fbjkQW?cluster=devnet)
 
 3. **Program ID**
 
-   Initial status: not available yet.
+   Status: **Completed**
 
    Must provide:
 
    ```text
-   Program ID: <to be filled after deploy>
+   Program ID: GeYMy79EJmUs8japokaVcadb2RRs6vv7c4xYE2fbjkQW
    ```
 
    Notes:
 
-   - The Program ID must be recorded after a successful deployment.
-   - The Program ID must be consistent with the client/test configuration.
-   - If using Anchor, `Anchor.toml` and `declare_id!()` must align with the deployed Program ID.
+   - The Program ID has been recorded after a successful deployment.
+   - The Program ID is consistent with the client/test configuration.
+   - `Anchor.toml` and `declare_id!()` align with the deployed Program ID.
 
 4. **Test Transaction Signatures**
 
-   Initial status: not available yet.
+   Status: **Completed**
 
-   Must provide:
+   Test transactions successfully executed on Devnet:
 
-   - Create campaign transaction signature.
-   - Contribute transaction signature.
-   - Withdraw transaction signature for a successful campaign.
-   - Refund transaction signature for a failed campaign.
-   - Signatures for failed transactions are not always available as finalized transactions, but failure cases must still be proven via test output.
+   **Scenario 1 (Successful Campaign & Withdraw):**
+   - Create Campaign: `5FFoBmybpAJhhsmCEapHFhvgYkLo6VAFXSXVdZrPiDdHLsctrA81chA7MVogyDvBysbYbGTaZwbeh2KoqsYra8zE`
+   - Contribute: `3wmVsZ3aHL5H4mXwHH2svbN76p5x3GTJ9HkPs8VD1TCFKz9JaRfphK2F2TiFr169oqNaGchiHRaQy5bWw85aoovB`
+   - Withdraw: `a8dqm5XGYRBQJ7kqTF5hSkgAduQD5SWSNQVfWDyKi3nkqjkqN7mSpB5RofQY5p6B769MpQFziyR7ZP7qtcHWThh`
 
-   Recording format:
+   **Scenario 2 (Failed Campaign & Refund):**
+   - Create Campaign: `5fPfM7F3EpfsK7LP8KYrnCxnkoViB4SeVnnaDAhbgSEwnGqbV7hFYUSU42gHTnRLw3dujqRq7KDfYdaxLy8E7A1W`
+   - Contribute: `5szjUQXZehJFZQdz44uLkiEsppD5ybv2EtamxNtWyZrVAViK4b4CN4yueZ92rq6TLXLTUCLXCP2HgAeSBUxAunq7`
+   - Refund: `4F3b4rTaBgyciShTqN9jhoGJhoGocrzHBnRGY5Rk2MrZSYrx8kto3FSgUrjkCgijEEV7GhcLf4hcJ2ifazGN8xpa`
 
-   ```text
-   Create Campaign Signature: <signature>
-   Contribute Signature: <signature>
-   Withdraw Signature: <signature>
-   Refund Signature: <signature>
-   ```
+   _All signatures can be verified on [Solana Explorer (Devnet)](https://explorer.solana.com/?cluster=devnet)_
 
-   If possible, add a Devnet explorer link for each signature:
+## Final Implementation Decisions
 
-   ```text
-   https://explorer.solana.com/tx/<signature>?cluster=devnet
-   ```
+Decisions made during implementation:
 
-## Open Decisions Before Coding
-
-Things that need to be decided before implementation:
-
-1. Final project name: use **VaultRaise** temporarily.
-2. Program framework: Anchor is recommended for account ergonomics, PDAs, and tests.
-3. Campaign seed: needs an explicit `campaign_id` if a creator can make multiple campaigns.
-4. Whether the campaign account will ever be closed or left as an audit trail.
-5. Whether the platform will take a fee in advanced versions.
-6. Whether the campaign can receive contributions after the goal is reached but before the deadline.
-
-Suggested MVP decisions:
-
-- Use Anchor.
-- Use `campaign_id: u64` when creating a campaign.
-- Allow contributions to come in before the deadline even if the goal has been reached.
-- Do not close campaign accounts in the MVP.
-- Do not have platform fees in the MVP.
+1. **Final project name**: **VaultRaise**
+2. **Program framework**: **Anchor (v0.31.1)** was used for rapid, secure, and ergonomic development.
+3. **Campaign seed**: Implemented an explicit `campaign_id: u64` parameter to allow multiple campaigns per creator.
+4. **Account closure**: Campaign accounts are intentionally left open (not closed) in the MVP to serve as an on-chain audit trail.
+5. **Platform fees**: Excluded from the MVP.
+6. **Over-funding**: Allowed contributions to come in before the deadline even if the goal has been reached (no strict cap).
 
 ## MVP Acceptance Criteria
 

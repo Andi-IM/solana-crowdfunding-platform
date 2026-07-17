@@ -350,3 +350,38 @@ Evidence:
   - Refund TX: `4F3b4rTaBgyciShTqN9jhoGJhoGocrzHBnRGY5Rk2MrZSYrx8kto3FSgUrjkCgijEEV7GhcLf4hcJ2ifazGN8xpa`
 
 _All signatures can be searched on [Solana Explorer (Devnet)](https://explorer.solana.com/?cluster=devnet)_
+
+## VR-016 - Update Project Context With Implementation Decisions
+
+Status: Done
+
+Started: 2026-07-17
+Completed: 2026-07-17
+
+Scope:
+
+- Update `PROJECT_CONTEXT.md` with final project name.
+- Document final PDA seeds and logic.
+- Document Devnet deployment and Program ID in the context file.
+- Add Devnet transaction signatures to the `PROJECT_CONTEXT.md` deliverables section.
+- Close open decisions from before coding started.
+
+Evidence:
+
+- `PROJECT_CONTEXT.md` has been fully updated.
+
+## VR-017 - Prepare Developer Handoff Notes
+
+Status: Done
+
+Started: 2026-07-17
+Completed: 2026-07-17
+
+Scope:
+
+- Provide setup, build, test, and devnet deployment instructions.
+- Provide a summary of known MVP limitations.
+
+Evidence:
+
+- Written into `docs/SETUP.md`.
