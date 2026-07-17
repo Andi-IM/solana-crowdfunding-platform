@@ -223,3 +223,23 @@ Evidence:
 
 - `contribution_flow.rs` implemented and passes all assertions.
 - Time manipulation correctly tests the deadline constraint.
+
+## VR-010 - Write Tests For Withdraw Flow
+
+Status: Done
+
+Started: 2026-07-17
+Completed: 2026-07-17
+
+Scope:
+
+- Create `tests/withdraw_flow.rs` integration test suite.
+- Test `withdraw` fails if called before deadline.
+- Test `withdraw` succeeds when called after deadline and goal reached.
+- Verify the creator's SOL balance correctly increases upon withdrawal.
+- Test `withdraw` by non-creator fails.
+- Test second `withdraw` fails because funds are already claimed.
+
+Evidence:
+
+- `withdraw_flow.rs` correctly tests all paths using `solana-program-test`.
