@@ -1,13 +1,18 @@
 use anchor_lang::{InstructionData, ToAccountMetas};
 use solana_program_test::*;
 use solana_sdk::{
-    instruction::Instruction, pubkey::Pubkey, signature::Signer, signer::keypair::Keypair,
-    system_program, transaction::Transaction,
+    instruction::Instruction, pubkey::Pubkey, signature::Signer,
+    transaction::Transaction,
 };
+use solana_system_interface::program::id as system_program_id;
 use vault_raise;
 
 pub fn program_test() -> ProgramTest {
-    ProgramTest::new("vault_raise", vault_raise::id(), None)
+    ProgramTest::new(
+        "vault_raise",
+        vault_raise::id(),
+        processor!(vault_raise::entry),
+    )
 }
 
 #[tokio::test]
@@ -42,7 +47,7 @@ async fn test_campaign_creation_success() {
             campaign: campaign_pda,
             vault: vault_pda,
             creator: payer.pubkey(),
-            system_program: system_program::id(),
+            system_program: system_program_id(),
         }
         .to_account_metas(None),
         data: vault_raise::instruction::CreateCampaign {
@@ -94,7 +99,7 @@ async fn test_campaign_creation_fails_past_deadline() {
             campaign: campaign_pda,
             vault: vault_pda,
             creator: payer.pubkey(),
-            system_program: system_program::id(),
+            system_program: system_program_id(),
         }
         .to_account_metas(None),
         data: vault_raise::instruction::CreateCampaign {
@@ -142,7 +147,7 @@ async fn test_campaign_creation_fails_zero_goal() {
             campaign: campaign_pda,
             vault: vault_pda,
             creator: payer.pubkey(),
-            system_program: system_program::id(),
+            system_program: system_program_id(),
         }
         .to_account_metas(None),
         data: vault_raise::instruction::CreateCampaign {

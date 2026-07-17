@@ -2,12 +2,17 @@ use anchor_lang::{InstructionData, ToAccountMetas};
 use solana_program_test::*;
 use solana_sdk::{
     instruction::Instruction, pubkey::Pubkey, signature::Signer, signer::keypair::Keypair,
-    system_program, transaction::Transaction, clock::Clock,
+    transaction::Transaction, clock::Clock,
 };
+use solana_system_interface::program::id as system_program_id;
 use vault_raise;
 
 pub fn program_test() -> ProgramTest {
-    ProgramTest::new("vault_raise", vault_raise::id(), None)
+    ProgramTest::new(
+        "vault_raise",
+        vault_raise::id(),
+        processor!(vault_raise::entry),
+    )
 }
 
 async fn setup_campaign(
@@ -40,7 +45,7 @@ async fn setup_campaign(
             campaign: campaign_pda,
             vault: vault_pda,
             creator: payer.pubkey(),
-            system_program: system_program::id(),
+            system_program: system_program_id(),
         }
         .to_account_metas(None),
         data: vault_raise::instruction::CreateCampaign {
@@ -98,7 +103,7 @@ async fn test_contribution_flow_success() {
             contribution: contribution_pda,
             vault: vault_pda,
             donor: donor.pubkey(),
-            system_program: system_program::id(),
+            system_program: system_program_id(),
         }
         .to_account_metas(None),
         data: vault_raise::instruction::Contribute { amount: amount_1 }.data(),
@@ -116,7 +121,7 @@ async fn test_contribution_flow_success() {
             contribution: contribution_pda,
             vault: vault_pda,
             donor: donor.pubkey(),
-            system_program: system_program::id(),
+            system_program: system_program_id(),
         }
         .to_account_metas(None),
         data: vault_raise::instruction::Contribute { amount: amount_2 }.data(),
@@ -174,7 +179,7 @@ async fn test_contribution_fails_past_deadline() {
             contribution: contribution_pda,
             vault: vault_pda,
             donor: donor.pubkey(),
-            system_program: system_program::id(),
+            system_program: system_program_id(),
         }
         .to_account_metas(None),
         data: vault_raise::instruction::Contribute { amount }.data(),
@@ -226,7 +231,7 @@ async fn test_contribution_fails_zero_amount() {
             contribution: contribution_pda,
             vault: vault_pda,
             donor: donor.pubkey(),
-            system_program: system_program::id(),
+            system_program: system_program_id(),
         }
         .to_account_metas(None),
         data: vault_raise::instruction::Contribute { amount }.data(),
