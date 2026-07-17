@@ -51,3 +51,25 @@ Follow-up Cleanup:
 
 - Removed Node.js/TypeScript scaffold files from the project.
 - Removed Yarn/ts-mocha test script from `Anchor.toml`.
+
+## VR-002 - Define Program Accounts And Error Types
+
+Status: Done
+
+Started: 2026-07-17
+Completed: 2026-07-17
+
+Scope:
+
+- Define `Campaign` account.
+- Define `Contribution` account.
+- Define custom program errors.
+- Keep task limited to account and error definitions only.
+
+Evidence:
+
+- Added `Campaign` account with creator, goal, raised, deadline, claimed, bump, and vault bump fields.
+- Added `Contribution` account with campaign, donor, amount, refunded, and bump fields.
+- Added `VaultRaiseError` enum for expected validation and safety failures.
+- `cargo check` completed successfully from WSL.
+- `anchor build` completed successfully from WSL.
