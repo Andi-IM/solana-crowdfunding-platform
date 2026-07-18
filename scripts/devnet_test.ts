@@ -4,17 +4,35 @@ import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import fs from "fs";
 import path from "path";
 
-// Load IDL
-const idl = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../target/idl/vault_raise.json"), "utf8"));
+const IDL_PATH = path.resolve(__dirname, "../target/idl/vault_raise.json");
 const PROGRAM_ID = new PublicKey("GeYMy79EJmUs8japokaVcadb2RRs6vv7c4xYE2fbjkQW");
+const DEVNET_RPC_URL = process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
+
+function readJsonFile(filePath: string, label: string): unknown {
+    if (!fs.existsSync(filePath)) {
+        throw new Error(`${label} not found at ${filePath}`);
+    }
+
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
+function loadPayer(): Keypair {
+    const walletPath = process.env.SOLANA_WALLET ?? path.resolve(__dirname, "../id.json");
+    const secretKey = readJsonFile(walletPath, "Wallet keypair");
+
+    if (!Array.isArray(secretKey)) {
+        throw new Error(`Wallet keypair must be a JSON array: ${walletPath}`);
+    }
+
+    return Keypair.fromSecretKey(new Uint8Array(secretKey));
+}
 
 async function main() {
     console.log("Starting Devnet Test...");
 
-    const connection = new Connection("https://api.devnet.solana.com", "confirmed");
-    const walletPath = process.env.SOLANA_WALLET ?? path.resolve(__dirname, "../id.json");
-    const secretKey = JSON.parse(fs.readFileSync(walletPath, "utf8"));
-    const payer = Keypair.fromSecretKey(new Uint8Array(secretKey));
+    const idl = readJsonFile(IDL_PATH, "Anchor IDL") as anchor.Idl;
+    const connection = new Connection(DEVNET_RPC_URL, "confirmed");
+    const payer = loadPayer();
 
     const wallet = new anchor.Wallet(payer);
     const provider = new anchor.AnchorProvider(connection, wallet, {
@@ -23,6 +41,12 @@ async function main() {
     anchor.setProvider(provider);
 
     const program = new Program(idl, provider);
+    if (!program.programId.equals(PROGRAM_ID)) {
+        throw new Error(`IDL Program ID ${program.programId.toBase58()} does not match ${PROGRAM_ID.toBase58()}`);
+    }
+
+    console.log("Program ID:", PROGRAM_ID.toBase58());
+    console.log("Payer:", payer.publicKey.toBase58());
 
     // ==========================================
     // Scenario 1: Successful Campaign
