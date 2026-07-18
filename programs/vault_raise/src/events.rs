@@ -34,6 +34,13 @@ pub struct CampaignWithdrawn {
 }
 
 #[event]
+pub struct VaultSurplusSwept {
+    pub campaign: Pubkey,
+    pub creator: Pubkey,
+    pub amount: u64,
+}
+
+#[event]
 pub struct ContributionRefunded {
     pub campaign: Pubkey,
     pub donor: Pubkey,

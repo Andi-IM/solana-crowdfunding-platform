@@ -1,10 +1,12 @@
 use anchor_lang::prelude::*;
 
 use crate::errors::VaultRaiseError;
-use crate::events::{CampaignClosed, CampaignCreated, CampaignMetadataUpdated, CampaignWithdrawn};
+use crate::events::{
+    CampaignClosed, CampaignCreated, CampaignMetadataUpdated, CampaignWithdrawn, VaultSurplusSwept,
+};
+use crate::instructions::native_sol::{transfer_from_signer, transfer_from_vault};
 use crate::state::{
-    vault_signer_seeds, Campaign, CampaignStatus, FundingAsset, CAMPAIGN_SEED,
-    MAX_METADATA_URI_LEN, VAULT_SEED,
+    Campaign, CampaignStatus, FundingAsset, CAMPAIGN_SEED, MAX_METADATA_URI_LEN, VAULT_SEED,
 };
 
 pub fn create_campaign(
@@ -22,6 +24,7 @@ pub fn create_campaign(
     campaign.creator = ctx.accounts.creator.key();
     campaign.goal = goal;
     campaign.raised = 0;
+    campaign.refunded = 0;
     campaign.deadline = deadline;
     campaign.claimed = false;
     campaign.status = CampaignStatus::Active;
@@ -30,6 +33,17 @@ pub fn create_campaign(
     campaign.bump = ctx.bumps.campaign;
     campaign.vault_bump = ctx.bumps.vault;
     campaign.metadata_uri = String::new();
+
+    let rent_exempt_minimum = Rent::get()?.minimum_balance(0);
+    let current_vault_lamports = ctx.accounts.vault.lamports();
+    if current_vault_lamports < rent_exempt_minimum {
+        transfer_from_signer(
+            ctx.accounts.system_program.to_account_info(),
+            ctx.accounts.creator.to_account_info(),
+            ctx.accounts.vault.to_account_info(),
+            rent_exempt_minimum - current_vault_lamports,
+        )?;
+    }
 
     msg!("Campaign created: goal={}, deadline={}", goal, deadline);
 
@@ -73,43 +87,64 @@ pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
     let current_time = Clock::get()?.unix_timestamp;
     let campaign = &mut ctx.accounts.campaign;
 
-    require!(
-        campaign.asset.is_native_sol(),
-        VaultRaiseError::NativeAssetRequired
-    );
-    require!(
-        campaign.raised >= campaign.goal,
-        VaultRaiseError::CampaignNotSuccessful
-    );
-    require!(
-        current_time >= campaign.deadline,
-        VaultRaiseError::CampaignNotEnded
-    );
-    require!(!campaign.claimed, VaultRaiseError::AlreadyClaimed);
+    campaign.ensure_withdrawable(current_time)?;
 
     let amount = ctx.accounts.vault.lamports();
     let campaign_key = campaign.key();
-    let vault_bump = [campaign.vault_bump];
-    let seeds = vault_signer_seeds(&campaign_key, &vault_bump);
-    let signer_seeds = &[&seeds[..]];
-
-    let cpi_context = CpiContext::new_with_signer(
+    transfer_from_vault(
         ctx.accounts.system_program.to_account_info(),
-        anchor_lang::system_program::Transfer {
-            from: ctx.accounts.vault.to_account_info(),
-            to: ctx.accounts.creator.to_account_info(),
-        },
-        signer_seeds,
-    );
+        ctx.accounts.vault.to_account_info(),
+        ctx.accounts.creator.to_account_info(),
+        &campaign_key,
+        campaign.vault_bump,
+        amount,
+    )?;
 
-    anchor_lang::system_program::transfer(cpi_context, amount)?;
-
-    campaign.claimed = true;
-    campaign.status = CampaignStatus::Claimed;
+    campaign.mark_claimed();
 
     msg!("Withdrawn: {} lamports", amount);
 
     emit!(CampaignWithdrawn {
+        campaign: campaign.key(),
+        creator: ctx.accounts.creator.key(),
+        amount,
+    });
+
+    Ok(())
+}
+
+pub fn sweep_failed_vault_surplus(ctx: Context<SweepFailedVaultSurplus>) -> Result<()> {
+    let current_time = Clock::get()?.unix_timestamp;
+    let campaign = &ctx.accounts.campaign;
+
+    campaign.ensure_refundable(current_time)?;
+
+    let rent_exempt_minimum = Rent::get()?.minimum_balance(0);
+    let reserved_for_refunds = campaign.tracked_outstanding()?;
+    let reserved_balance = reserved_for_refunds
+        .checked_add(rent_exempt_minimum)
+        .ok_or(VaultRaiseError::ArithmeticOverflow)?;
+    let vault_balance = ctx.accounts.vault.lamports();
+
+    require!(
+        vault_balance > reserved_balance,
+        VaultRaiseError::NoVaultSurplus
+    );
+
+    let amount = vault_balance
+        .checked_sub(reserved_balance)
+        .ok_or(VaultRaiseError::ArithmeticOverflow)?;
+    let campaign_key = campaign.key();
+    transfer_from_vault(
+        ctx.accounts.system_program.to_account_info(),
+        ctx.accounts.vault.to_account_info(),
+        ctx.accounts.creator.to_account_info(),
+        &campaign_key,
+        campaign.vault_bump,
+        amount,
+    )?;
+
+    emit!(VaultSurplusSwept {
         campaign: campaign.key(),
         creator: ctx.accounts.creator.key(),
         amount,
@@ -181,6 +216,28 @@ pub struct UpdateCampaignMetadata<'info> {
 pub struct Withdraw<'info> {
     #[account(
         mut,
+        has_one = creator @ VaultRaiseError::UnauthorizedCreator
+    )]
+    pub campaign: Account<'info, Campaign>,
+
+    /// CHECK: Vault PDA to hold native SOL campaign funds.
+    #[account(
+        mut,
+        seeds = [VAULT_SEED, campaign.key().as_ref()],
+        bump = campaign.vault_bump
+    )]
+    pub vault: SystemAccount<'info>,
+
+    #[account(mut)]
+    pub creator: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+/// Sweeps untracked lamports sent directly to a failed native-SOL vault.
+pub struct SweepFailedVaultSurplus<'info> {
+    #[account(
         has_one = creator @ VaultRaiseError::UnauthorizedCreator
     )]
     pub campaign: Account<'info, Campaign>,

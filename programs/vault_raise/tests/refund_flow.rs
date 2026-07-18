@@ -1,7 +1,7 @@
 use anchor_lang::{AccountDeserialize, InstructionData, ToAccountMetas};
 use solana_program_test::*;
 use solana_sdk::{
-    clock::Clock, instruction::Instruction, pubkey::Pubkey, signature::Signer,
+    clock::Clock, instruction::Instruction, pubkey::Pubkey, rent::Rent, signature::Signer,
     signer::keypair::Keypair, transaction::Transaction,
 };
 use solana_system_interface::program::id as system_program_id;
@@ -265,6 +265,99 @@ async fn test_refund_fails_before_deadline() {
     tx.sign(&[&donor], context.last_blockhash);
     let result = context.banks_client.process_transaction(tx).await;
     assert!(result.is_err(), "Refund before deadline should fail");
+}
+
+#[tokio::test]
+async fn test_direct_vault_transfer_surplus_can_be_swept_after_failed_refund() {
+    let mut context = program_test().start_with_context().await;
+    let payer = Keypair::try_from(context.payer.to_bytes().as_ref()).unwrap();
+
+    let campaign_id = 4u64;
+    let goal = 1000 * 1_000_000_000;
+    let direct_surplus = 1_000_000_000;
+
+    let (campaign_pda, vault_pda, donor, contribution_pda) = setup_failed_campaign(
+        &mut context,
+        &payer,
+        campaign_id,
+        goal,
+        100,
+        200 * 1_000_000_000,
+    )
+    .await;
+
+    let direct_ix =
+        solana_sdk::system_instruction::transfer(&payer.pubkey(), &vault_pda, direct_surplus);
+    let mut direct_tx = Transaction::new_with_payer(&[direct_ix], Some(&payer.pubkey()));
+    direct_tx.sign(&[&payer], context.last_blockhash);
+    context
+        .banks_client
+        .process_transaction(direct_tx)
+        .await
+        .unwrap();
+
+    let mut clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
+    clock.unix_timestamp += 200;
+    context.set_sysvar(&clock);
+
+    let refund_ix = Instruction {
+        program_id: vault_raise::id(),
+        accounts: vault_raise::accounts::Refund {
+            campaign: campaign_pda,
+            contribution: contribution_pda,
+            vault: vault_pda,
+            donor: donor.pubkey(),
+            system_program: system_program_id(),
+        }
+        .to_account_metas(None),
+        data: vault_raise::instruction::Refund {}.data(),
+    };
+
+    let mut refund_tx = Transaction::new_with_payer(&[refund_ix], Some(&donor.pubkey()));
+    refund_tx.sign(&[&donor], context.last_blockhash);
+    context
+        .banks_client
+        .process_transaction(refund_tx)
+        .await
+        .expect("Refund should succeed before sweeping surplus");
+
+    let creator_before = context
+        .banks_client
+        .get_balance(payer.pubkey())
+        .await
+        .unwrap();
+
+    let sweep_ix = Instruction {
+        program_id: vault_raise::id(),
+        accounts: vault_raise::accounts::SweepFailedVaultSurplus {
+            campaign: campaign_pda,
+            vault: vault_pda,
+            creator: payer.pubkey(),
+            system_program: system_program_id(),
+        }
+        .to_account_metas(None),
+        data: vault_raise::instruction::SweepFailedVaultSurplus {}.data(),
+    };
+
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let mut sweep_tx = Transaction::new_with_payer(&[sweep_ix], Some(&payer.pubkey()));
+    sweep_tx.sign(&[&payer], recent_blockhash);
+    context
+        .banks_client
+        .process_transaction(sweep_tx)
+        .await
+        .expect("Failed campaign vault surplus should sweep");
+
+    let creator_after = context
+        .banks_client
+        .get_balance(payer.pubkey())
+        .await
+        .unwrap();
+    assert!(creator_after > creator_before);
+    assert!(creator_after - creator_before > direct_surplus - 10_000);
+
+    let vault_balance = context.banks_client.get_balance(vault_pda).await.unwrap();
+    assert_eq!(vault_balance, Rent::default().minimum_balance(0));
 }
 
 #[tokio::test]

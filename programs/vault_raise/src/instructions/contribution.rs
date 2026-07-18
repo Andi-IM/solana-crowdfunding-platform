@@ -2,9 +2,8 @@ use anchor_lang::prelude::*;
 
 use crate::errors::VaultRaiseError;
 use crate::events::{CampaignContributed, ContributionClosed, ContributionRefunded};
-use crate::state::{
-    vault_signer_seeds, Campaign, CampaignStatus, Contribution, CONTRIBUTION_SEED, VAULT_SEED,
-};
+use crate::instructions::native_sol::{transfer_from_signer, transfer_from_vault};
+use crate::state::{Campaign, Contribution, CONTRIBUTION_SEED, VAULT_SEED};
 
 pub fn contribute(ctx: Context<Contribute>, amount: u64) -> Result<()> {
     let current_time = Clock::get()?.unix_timestamp;
@@ -12,29 +11,14 @@ pub fn contribute(ctx: Context<Contribute>, amount: u64) -> Result<()> {
     require!(amount > 0, VaultRaiseError::InvalidContributionAmount);
 
     let campaign = &mut ctx.accounts.campaign;
+    campaign.ensure_contributable(current_time)?;
 
-    require!(
-        campaign.asset.is_native_sol(),
-        VaultRaiseError::NativeAssetRequired
-    );
-    require!(
-        current_time < campaign.deadline,
-        VaultRaiseError::CampaignEnded
-    );
-    require!(!campaign.claimed, VaultRaiseError::AlreadyClaimed);
-    require!(
-        campaign.status == CampaignStatus::Active,
-        VaultRaiseError::CampaignNotActive
-    );
-
-    let cpi_context = CpiContext::new(
+    transfer_from_signer(
         ctx.accounts.system_program.to_account_info(),
-        anchor_lang::system_program::Transfer {
-            from: ctx.accounts.donor.to_account_info(),
-            to: ctx.accounts.vault.to_account_info(),
-        },
-    );
-    anchor_lang::system_program::transfer(cpi_context, amount)?;
+        ctx.accounts.donor.to_account_info(),
+        ctx.accounts.vault.to_account_info(),
+        amount,
+    )?;
 
     campaign.raised = campaign
         .raised
@@ -73,25 +57,10 @@ pub fn contribute(ctx: Context<Contribute>, amount: u64) -> Result<()> {
 
 pub fn refund(ctx: Context<Refund>) -> Result<()> {
     let current_time = Clock::get()?.unix_timestamp;
-    let campaign = &ctx.accounts.campaign;
+    let campaign = &mut ctx.accounts.campaign;
     let contribution = &mut ctx.accounts.contribution;
 
-    require!(
-        campaign.asset.is_native_sol(),
-        VaultRaiseError::NativeAssetRequired
-    );
-    require!(
-        campaign.raised < campaign.goal,
-        VaultRaiseError::CampaignNotFailed
-    );
-    require!(
-        current_time >= campaign.deadline,
-        VaultRaiseError::CampaignNotEnded
-    );
-    require!(
-        campaign.status == CampaignStatus::Active,
-        VaultRaiseError::CampaignNotActive
-    );
+    campaign.ensure_refundable(current_time)?;
     require!(!contribution.refunded, VaultRaiseError::AlreadyRefunded);
     require!(
         contribution.amount > 0,
@@ -100,23 +69,21 @@ pub fn refund(ctx: Context<Refund>) -> Result<()> {
 
     let amount = contribution.amount;
     let campaign_key = campaign.key();
-    let vault_bump = [campaign.vault_bump];
-    let seeds = vault_signer_seeds(&campaign_key, &vault_bump);
-    let signer_seeds = &[&seeds[..]];
-
-    let cpi_context = CpiContext::new_with_signer(
+    transfer_from_vault(
         ctx.accounts.system_program.to_account_info(),
-        anchor_lang::system_program::Transfer {
-            from: ctx.accounts.vault.to_account_info(),
-            to: ctx.accounts.donor.to_account_info(),
-        },
-        signer_seeds,
-    );
-
-    anchor_lang::system_program::transfer(cpi_context, amount)?;
+        ctx.accounts.vault.to_account_info(),
+        ctx.accounts.donor.to_account_info(),
+        &campaign_key,
+        campaign.vault_bump,
+        amount,
+    )?;
 
     contribution.refunded = true;
     contribution.amount = 0;
+    campaign.refunded = campaign
+        .refunded
+        .checked_add(amount)
+        .ok_or(VaultRaiseError::ArithmeticOverflow)?;
 
     msg!("Refunded: {} lamports", amount);
 
@@ -131,7 +98,7 @@ pub fn refund(ctx: Context<Refund>) -> Result<()> {
 
 pub fn close_refunded_contribution(ctx: Context<CloseRefundedContribution>) -> Result<()> {
     require!(
-        ctx.accounts.contribution.refunded,
+        ctx.accounts.contribution.refunded || ctx.accounts.campaign.claimed,
         VaultRaiseError::ContributionNotClosable
     );
 
@@ -175,6 +142,7 @@ pub struct Contribute<'info> {
 #[derive(Accounts)]
 /// Accounts required for a donor refund from a failed native-SOL campaign.
 pub struct Refund<'info> {
+    #[account(mut)]
     pub campaign: Account<'info, Campaign>,
 
     #[account(

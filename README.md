@@ -10,6 +10,7 @@ It solves the common trust issues in traditional crowdfunding by utilizing a **P
 2. **Contribute**: Donors can send SOL to the campaign's vault. Funds are securely locked in a PDA, meaning they are not directly sent to the creator's wallet.
 3. **Withdraw**: If the campaign reaches its goal and the deadline has passed, the creator can withdraw the accumulated funds.
 4. **Refund**: If the campaign fails to reach its goal by the deadline, donors can claim a full refund of their contributions.
+5. **Rent Recovery**: Donors can close settled contribution accounts after either a refund or a successful campaign claim.
 
 ## Technical Stack
 
@@ -62,11 +63,12 @@ Typical client usage:
 
 1. Derive the campaign PDA with `["campaign", creator, campaign_id]`.
 2. Derive the vault PDA with `["vault", campaign]`.
-3. Call `create_campaign(campaign_id, goal, deadline)` with a positive lamport goal and a future Unix timestamp.
+3. Call `create_campaign(campaign_id, goal, deadline)` with a positive lamport goal and a future Unix timestamp. The instruction funds the vault PDA to the rent-exempt minimum, so the first contribution can be any positive lamport amount.
 4. Derive each donor contribution PDA with `["contribution", campaign, donor]`.
 5. Call `contribute(amount)` before the deadline to transfer SOL into the vault PDA.
 6. After the deadline, call `withdraw()` if `raised >= goal`, or `refund()` if `raised < goal`.
-7. Optionally close settled accounts with `close_campaign()` or `close_refunded_contribution()` if rent recovery is preferred over retaining account data. The core MVP lifecycle does not require account closure.
+7. If a failed campaign vault received direct untracked SOL transfers, the creator can call `sweep_failed_vault_surplus()` after the deadline. The instruction preserves all tracked outstanding donor refunds plus the vault rent reserve and only releases the surplus.
+8. Optionally close settled accounts with `close_campaign()` or `close_refunded_contribution()` if rent recovery is preferred over retaining account data. Contribution accounts are closable after refund or after the campaign is claimed.
 
 ## Architecture Notes
 
@@ -98,6 +100,7 @@ Common program errors:
 | `AlreadyRefunded` | The donor contribution has already been refunded. |
 | `InvalidContributionAmount` | Contribution or refund amount is zero or invalid. |
 | `ArithmeticOverflow` | Lamport accounting overflowed. |
+| `NoVaultSurplus` | Sweep was attempted when the failed vault has no untracked surplus lamports. |
 
 ## Deployment
 

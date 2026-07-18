@@ -1,7 +1,7 @@
 use anchor_lang::{AccountDeserialize, InstructionData, ToAccountMetas};
 use solana_program_test::*;
 use solana_sdk::{
-    clock::Clock, instruction::Instruction, pubkey::Pubkey, signature::Signer,
+    clock::Clock, instruction::Instruction, pubkey::Pubkey, rent::Rent, signature::Signer,
     signer::keypair::Keypair, transaction::Transaction,
 };
 use solana_system_interface::program::id as system_program_id;
@@ -176,6 +176,69 @@ async fn test_contribution_flow_success() {
     assert_eq!(contribution.donor, donor.pubkey());
     assert_eq!(contribution.amount, amount_1 + amount_2);
     assert!(!contribution.refunded);
+}
+
+#[tokio::test]
+async fn test_first_tiny_contribution_succeeds_with_rent_exempt_vault() {
+    let mut context = program_test().start_with_context().await;
+    let payer = Keypair::try_from(context.payer.to_bytes().as_ref()).unwrap();
+
+    let campaign_id = 4u64;
+    let goal = 1_000_000_000;
+    let (campaign_pda, vault_pda) =
+        setup_campaign(&mut context, &payer, campaign_id, goal, 86400).await;
+
+    let rent_exempt_minimum = Rent::default().minimum_balance(0);
+    let vault_balance_before = context.banks_client.get_balance(vault_pda).await.unwrap();
+    assert_eq!(vault_balance_before, rent_exempt_minimum);
+
+    let donor = Keypair::new();
+    let fund_ix =
+        solana_sdk::system_instruction::transfer(&payer.pubkey(), &donor.pubkey(), 1_000_000_000);
+    let mut fund_tx = Transaction::new_with_payer(&[fund_ix], Some(&payer.pubkey()));
+    fund_tx.sign(&[&payer], context.last_blockhash);
+    context
+        .banks_client
+        .process_transaction(fund_tx)
+        .await
+        .unwrap();
+
+    let (contribution_pda, _) = Pubkey::find_program_address(
+        &[
+            b"contribution",
+            campaign_pda.as_ref(),
+            donor.pubkey().as_ref(),
+        ],
+        &vault_raise::id(),
+    );
+
+    let ix = Instruction {
+        program_id: vault_raise::id(),
+        accounts: vault_raise::accounts::Contribute {
+            campaign: campaign_pda,
+            contribution: contribution_pda,
+            vault: vault_pda,
+            donor: donor.pubkey(),
+            system_program: system_program_id(),
+        }
+        .to_account_metas(None),
+        data: vault_raise::instruction::Contribute { amount: 1 }.data(),
+    };
+
+    let mut tx = Transaction::new_with_payer(&[ix], Some(&donor.pubkey()));
+    tx.sign(&[&donor], context.last_blockhash);
+    context
+        .banks_client
+        .process_transaction(tx)
+        .await
+        .expect("First tiny contribution should succeed");
+
+    let campaign = get_campaign(&mut context.banks_client, campaign_pda).await;
+    assert_eq!(campaign.raised, 1);
+    assert_eq!(campaign.refunded, 0);
+
+    let vault_balance_after = context.banks_client.get_balance(vault_pda).await.unwrap();
+    assert_eq!(vault_balance_after, rent_exempt_minimum + 1);
 }
 
 #[tokio::test]

@@ -1,10 +1,21 @@
 use anchor_lang::prelude::*;
 
+use crate::errors::VaultRaiseError;
+
 pub const GOVERNANCE_SEED: &[u8] = b"governance";
 pub const CAMPAIGN_SEED: &[u8] = b"campaign";
 pub const VAULT_SEED: &[u8] = b"vault";
 pub const CONTRIBUTION_SEED: &[u8] = b"contribution";
 pub const MAX_METADATA_URI_LEN: usize = 200;
+
+const ACCOUNT_DISCRIMINATOR_SIZE: usize = 8;
+const PUBKEY_SIZE: usize = 32;
+const U64_SIZE: usize = 8;
+const I64_SIZE: usize = 8;
+const U16_SIZE: usize = 2;
+const U8_SIZE: usize = 1;
+const BOOL_SIZE: usize = 1;
+const STRING_PREFIX_SIZE: usize = 4;
 
 #[account]
 #[derive(InitSpace)]
@@ -13,6 +24,7 @@ pub struct Campaign {
     pub creator: Pubkey,
     pub goal: u64,
     pub raised: u64,
+    pub refunded: u64,
     pub deadline: i64,
     pub claimed: bool,
     pub status: CampaignStatus,
@@ -25,10 +37,81 @@ pub struct Campaign {
 }
 
 impl Campaign {
-    pub const SPACE: usize = 8 + Self::INIT_SPACE;
+    pub const SPACE: usize = ACCOUNT_DISCRIMINATOR_SIZE + Self::INIT_SPACE;
 
     pub fn realloc_space(metadata_uri_len: usize) -> usize {
-        8 + 32 + 8 + 8 + 8 + 1 + 1 + FundingAsset::INIT_SPACE + 2 + 1 + 1 + 4 + metadata_uri_len
+        ACCOUNT_DISCRIMINATOR_SIZE
+            + PUBKEY_SIZE
+            + U64_SIZE
+            + U64_SIZE
+            + U64_SIZE
+            + I64_SIZE
+            + BOOL_SIZE
+            + U8_SIZE
+            + FundingAsset::INIT_SPACE
+            + U16_SIZE
+            + U8_SIZE
+            + U8_SIZE
+            + STRING_PREFIX_SIZE
+            + metadata_uri_len
+    }
+
+    pub fn ensure_contributable(&self, current_time: i64) -> Result<()> {
+        self.ensure_native_sol()?;
+        require!(current_time < self.deadline, VaultRaiseError::CampaignEnded);
+        require!(!self.claimed, VaultRaiseError::AlreadyClaimed);
+        self.ensure_active()
+    }
+
+    pub fn ensure_withdrawable(&self, current_time: i64) -> Result<()> {
+        self.ensure_native_sol()?;
+        require!(
+            self.raised >= self.goal,
+            VaultRaiseError::CampaignNotSuccessful
+        );
+        require!(
+            current_time >= self.deadline,
+            VaultRaiseError::CampaignNotEnded
+        );
+        require!(!self.claimed, VaultRaiseError::AlreadyClaimed);
+        Ok(())
+    }
+
+    pub fn ensure_refundable(&self, current_time: i64) -> Result<()> {
+        self.ensure_native_sol()?;
+        require!(self.raised < self.goal, VaultRaiseError::CampaignNotFailed);
+        require!(
+            current_time >= self.deadline,
+            VaultRaiseError::CampaignNotEnded
+        );
+        self.ensure_active()
+    }
+
+    pub fn mark_claimed(&mut self) {
+        self.claimed = true;
+        self.status = CampaignStatus::Claimed;
+    }
+
+    pub fn tracked_outstanding(&self) -> Result<u64> {
+        self.raised
+            .checked_sub(self.refunded)
+            .ok_or(VaultRaiseError::ArithmeticOverflow.into())
+    }
+
+    fn ensure_native_sol(&self) -> Result<()> {
+        require!(
+            self.asset.is_native_sol(),
+            VaultRaiseError::NativeAssetRequired
+        );
+        Ok(())
+    }
+
+    fn ensure_active(&self) -> Result<()> {
+        require!(
+            self.status == CampaignStatus::Active,
+            VaultRaiseError::CampaignNotActive
+        );
+        Ok(())
     }
 }
 
@@ -44,7 +127,7 @@ pub struct Contribution {
 }
 
 impl Contribution {
-    pub const SPACE: usize = 8 + Self::INIT_SPACE;
+    pub const SPACE: usize = ACCOUNT_DISCRIMINATOR_SIZE + Self::INIT_SPACE;
 }
 
 #[account]
@@ -57,7 +140,7 @@ pub struct Governance {
 }
 
 impl Governance {
-    pub const SPACE: usize = 8 + Self::INIT_SPACE;
+    pub const SPACE: usize = ACCOUNT_DISCRIMINATOR_SIZE + Self::INIT_SPACE;
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace)]
@@ -68,9 +151,8 @@ pub enum CampaignStatus {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace)]
-/// Funding asset abstraction. Native SOL is implemented now; SPL Token fields
-/// are represented in state so token-vault instructions can be added without a
-/// campaign account migration.
+/// Funding asset state. Native SOL is operational now; SPL Token is reserved so
+/// future token-vault instructions can be added without a campaign migration.
 pub enum FundingAsset {
     NativeSol,
     SplToken { mint: Pubkey },

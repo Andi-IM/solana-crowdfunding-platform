@@ -46,6 +46,11 @@ pub mod vault_raise {
         instructions::withdraw(ctx)
     }
 
+    /// Sweeps direct-transfer surplus from a failed campaign vault while preserving tracked refunds.
+    pub fn sweep_failed_vault_surplus(ctx: Context<SweepFailedVaultSurplus>) -> Result<()> {
+        instructions::sweep_failed_vault_surplus(ctx)
+    }
+
     /// Refunds a donor's recorded contribution after a failed campaign.
     pub fn refund(ctx: Context<Refund>) -> Result<()> {
         instructions::refund(ctx)

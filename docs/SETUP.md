@@ -54,10 +54,12 @@ To test against a live network (Devnet), run the TypeScript script from the host
 ```powershell
 npm install
 $env:SOLANA_WALLET="\\wsl.localhost\Ubuntu\home\andii\.config\solana\id.json"
+$env:SOLANA_RPC_URL="https://api.devnet.solana.com"
 npx tsx scripts/devnet_test.ts
 ```
 
 If `SOLANA_WALLET` is not set, the script falls back to `id.json` in the project root.
+If `SOLANA_RPC_URL` is not set, the script falls back to Solana's public Devnet RPC.
 
 ## 4. Usage And Integration Notes
 
@@ -71,12 +73,13 @@ contribution = ["contribution", campaign.key(), donor.key()]
 
 Instruction sequence:
 
-1. `create_campaign(campaign_id, goal, deadline)` initializes the campaign state and vault PDA.
+1. `create_campaign(campaign_id, goal, deadline)` initializes the campaign state and vault PDA, then funds the vault PDA to the rent-exempt minimum.
 2. `update_campaign_metadata(metadata_uri)` optionally reallocates campaign metadata within the configured URI limit.
 3. `contribute(amount)` transfers SOL from donor to vault and records the donor contribution.
 4. `withdraw()` transfers vault SOL to the creator after the deadline if `raised >= goal`.
 5. `refund()` transfers a donor's contribution back after the deadline if `raised < goal`.
-6. Optional: `close_campaign()` and `close_refunded_contribution()` close settled accounts and return rent when account-data retention is not required.
+6. `sweep_failed_vault_surplus()` lets the creator recover untracked direct-transfer surplus from a failed campaign vault while preserving all outstanding tracked refunds and the rent reserve.
+7. Optional: `close_campaign()` and `close_refunded_contribution()` close settled accounts and return rent when account-data retention is not required. Contribution accounts are closable after refund or after the campaign is claimed.
 
 Architecture layout:
 
@@ -113,6 +116,7 @@ Common errors:
 | `AlreadyRefunded` | Refund attempted more than once for the same contribution. |
 | `InvalidContributionAmount` | Contribution amount is zero or refund contribution amount is zero. |
 | `ArithmeticOverflow` | Lamport addition overflowed. |
+| `NoVaultSurplus` | Failed vault has no untracked direct-transfer surplus to sweep. |
 
 ## 5. Devnet Deployment Instructions
 
@@ -129,7 +133,7 @@ anchor deploy
 ## 6. MVP Known Limitations
 
 - **No SPL Token Support**: The program currently only accepts native SOL, not USDC or other tokens.
-- **Account Closure**: Account closure is optional after settlement. Leaving accounts open preserves account-data audit history; closing accounts returns rent while structured events/logs remain available for off-chain audit.
+- **Account Closure**: Account closure is optional after settlement. Leaving accounts open preserves account-data audit history; closing accounts returns rent while structured events/logs remain available for off-chain audit. Donor contribution accounts can be closed after refund or after the campaign is claimed.
 - **No Platform Fees**: 100% of the funds go to the creator or back to donors.
 - **Over-funding Allowed**: Donors can still contribute even if the funding goal has already been reached, as long as the deadline hasn't passed.
 - **Timestamp Accuracy**: Relies on Solana's `Clock::unix_timestamp`, which can vary slightly from real-world time.

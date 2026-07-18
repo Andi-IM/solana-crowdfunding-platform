@@ -26,6 +26,8 @@ pub enum VaultRaiseError {
     ArithmeticOverflow,
     #[msg("Vault balance is insufficient.")]
     InsufficientVaultBalance,
+    #[msg("Vault has no untracked surplus lamports to sweep.")]
+    NoVaultSurplus,
     #[msg("Campaign is not active.")]
     CampaignNotActive,
     #[msg("Metadata URI is too long.")]

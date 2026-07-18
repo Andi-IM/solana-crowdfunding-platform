@@ -133,7 +133,7 @@ async fn test_withdraw_success_and_twice_fails() {
     let goal = 1000 * 1_000_000_000;
 
     // Setup campaign that meets the goal
-    let (campaign_pda, vault_pda, _, _) = setup_funded_campaign(
+    let (campaign_pda, vault_pda, donor, contribution_pda) = setup_funded_campaign(
         &mut context,
         &payer,
         campaign_id,
@@ -197,6 +197,36 @@ async fn test_withdraw_success_and_twice_fails() {
     tx2.sign(&[&payer], recent_blockhash);
     let result2 = context.banks_client.process_transaction(tx2).await;
     assert!(result2.is_err(), "Second withdraw should fail");
+
+    let close_contribution_ix = Instruction {
+        program_id: vault_raise::id(),
+        accounts: vault_raise::accounts::CloseRefundedContribution {
+            campaign: campaign_pda,
+            contribution: contribution_pda,
+            donor: donor.pubkey(),
+        }
+        .to_account_metas(None),
+        data: vault_raise::instruction::CloseRefundedContribution {}.data(),
+    };
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let mut close_contribution_tx =
+        Transaction::new_with_payer(&[close_contribution_ix], Some(&donor.pubkey()));
+    close_contribution_tx.sign(&[&donor], recent_blockhash);
+    context
+        .banks_client
+        .process_transaction(close_contribution_tx)
+        .await
+        .expect("Contribution from claimed campaign should close");
+
+    let closed_contribution = context
+        .banks_client
+        .get_account(contribution_pda)
+        .await
+        .unwrap();
+    assert!(
+        closed_contribution.is_none(),
+        "Contribution account should be closed after campaign claim"
+    );
 
     let close_ix = Instruction {
         program_id: vault_raise::id(),
